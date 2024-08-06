@@ -192,10 +192,7 @@ export const sendCollectionOauth2Request = (collectionUid, itemUid) => (dispatch
 
     const environment = findEnvironmentInCollection(collectionCopy, collection.activeEnvironmentUid);
 
-    const externalSecrets = getExternalCollectionSecretsForActiveEnvironment({ collection });
-    const secretVariables = getFormattedCollectionSecretVariables({ externalSecrets });
-
-    _sendCollectionOauth2Request(collection, environment, collectionCopy.collectionVariables, itemUid, secretVariables)
+    _sendCollectionOauth2Request(collection, environment, collectionCopy.runtimeVariables)
       .then((response) => {
         if (response?.data?.error) {
           toast.error(response?.data?.error);
@@ -224,7 +221,7 @@ export const sendRequest = (item, collectionUid) => (dispatch, getState) => {
     const collectionCopy = cloneDeep(collection);
 
     const environment = findEnvironmentInCollection(collectionCopy, collectionCopy.activeEnvironmentUid);
-    sendNetworkRequest(itemCopy, collectionCopy, environment, collectionCopy.collectionVariables)
+    sendNetworkRequest(itemCopy, collectionCopy, environment, collectionCopy.runtimeVariables)
       .then((response) => {
         return dispatch(
           responseReceived({
@@ -314,7 +311,7 @@ export const runCollectionFolder = (collectionUid, folderUid, recursive) => (dis
         folder,
         collectionCopy,
         environment,
-        collectionCopy.collectionVariables,
+        collectionCopy.runtimeVariables,
         recursive
       )
       .then(resolve)
@@ -1036,7 +1033,7 @@ export const openCollectionEvent = (uid, pathname, brunoConfig) => (dispatch, ge
     name: brunoConfig.name,
     pathname: pathname,
     items: [],
-    collectionVariables: {},
+    runtimeVariables: {},
     brunoConfig: brunoConfig
   };
 
