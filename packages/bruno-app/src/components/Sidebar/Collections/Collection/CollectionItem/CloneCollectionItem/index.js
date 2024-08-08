@@ -58,7 +58,6 @@ const CloneCollectionItem = ({ collection, item, onClose }) => {
             id="collection-item-name"
             type="text"
             name="name"
-            placeholder='Enter Item name'
             ref={inputRef}
             className="block textbox mt-2 w-full"
             autoComplete="off"
