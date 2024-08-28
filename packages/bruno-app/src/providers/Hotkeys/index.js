@@ -154,6 +154,65 @@ export const HotkeysProvider = (props) => {
     };
   }, [activeTabUid]);
 
+  // Switch to the previous tab
+  useEffect(() => {
+    Mousetrap.bind(['command+pageup', 'ctrl+pageup'], (e) => {
+      dispatch(
+        switchTab({
+          direction: 'pageup'
+        })
+      );
+
+      return false; // this stops the event bubbling
+    });
+
+    return () => {
+      Mousetrap.unbind(['command+pageup', 'ctrl+pageup']);
+    };
+  }, [dispatch]);
+
+  // Switch to the next tab
+  useEffect(() => {
+    Mousetrap.bind(['command+pagedown', 'ctrl+pagedown'], (e) => {
+      dispatch(
+        switchTab({
+          direction: 'pagedown'
+        })
+      );
+
+      return false; // this stops the event bubbling
+    });
+
+    return () => {
+      Mousetrap.unbind(['command+pagedown', 'ctrl+pagedown']);
+    };
+  }, [dispatch]);
+
+  // Close all tabs
+  useEffect(() => {
+    Mousetrap.bind(['command+shift+w', 'ctrl+shift+w'], (e) => {
+      const activeTab = find(tabs, (t) => t.uid === activeTabUid);
+      if (activeTab) {
+        const collection = findCollectionByUid(collections, activeTab.collectionUid);
+
+        if (collection) {
+          const tabUids = tabs.filter((tab) => tab.collectionUid === collection.uid).map((tab) => tab.uid);
+          dispatch(
+            closeTabs({
+              tabUids: tabUids
+            })
+          );
+        }
+      }
+
+      return false; // this stops the event bubbling
+    });
+
+    return () => {
+      Mousetrap.unbind(['command+shift+w', 'ctrl+shift+w']);
+    };
+  }, [activeTabUid, tabs, collections, dispatch]);
+
   return (
     <HotkeysContext.Provider {...props} value="hotkey">
       {showSaveRequestModal && (
