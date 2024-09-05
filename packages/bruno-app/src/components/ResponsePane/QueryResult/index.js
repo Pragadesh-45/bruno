@@ -20,7 +20,7 @@ const formatResponse = (data, mode, filter) => {
 
   let isTrueJSON;
   try {
-    isTrueJSON = typeof JSON.parse(JSON.stringify(data)) === 'object';
+    isTrueJSON = typeof JSON.parse(JSON.stringify(data)) === 'object' && data !== null;
   } catch (error) {
     console.log('Error parsing JSON: ', error.message);
     isTrueJSON = false;
@@ -31,7 +31,7 @@ const formatResponse = (data, mode, filter) => {
       try {
         data = JSONPath({ path: filter, json: data });
       } catch (e) {
-        console.warn('Could not filter with JSONPath.', e.message);
+        console.warn('Could not filter with JSONPath:', e.message);
       }
     }
     return safeStringifyJSON(data, true);
@@ -48,7 +48,6 @@ const formatResponse = (data, mode, filter) => {
   if (typeof data === 'string') {
     return data;
   }
-  //return safeStringifyJSON(data)
   return data;
 };
 
