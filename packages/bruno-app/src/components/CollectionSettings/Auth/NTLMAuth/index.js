@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import get from 'lodash/get';
 import { useTheme } from 'providers/Theme';
 import { useDispatch } from 'react-redux';
@@ -7,76 +7,37 @@ import { updateCollectionAuth } from 'providers/ReduxStore/slices/collections';
 import { saveCollectionRoot } from 'providers/ReduxStore/slices/collections/actions';
 import StyledWrapper from './StyledWrapper';
 
-
-
-
-
 const NTLMAuth = ({ collection }) => {
-
-
   const dispatch = useDispatch();
   const { storedTheme } = useTheme();
+  const ntlmAuth = get(collection, 'root.request.auth.ntlm', { username: '', password: '', domain: '' });
 
-  const ntlmAuth = get(collection, 'root.request.auth.ntlm', {});
-
-  const handleSave = () => dispatch(saveCollectionRoot(collection.uid));
-
-
-  const handleUsernameChange = (username) => {
-    dispatch(
-      updateCollectionAuth({
-        mode: 'ntlm',
-        collectionUid: collection.uid,
-        content: {
-          username: username,
-          password: ntlmAuth.password,
-          domain: ntlmAuth.domain
-
-        }
-      })
-    );
+  const handleSave = () => {
+    dispatch(saveCollectionRoot({ uid: collection.uid }));
   };
 
-  const handlePasswordChange = (password) => {
+  const handleFieldChange = useCallback((field) => (value) => {
     dispatch(
       updateCollectionAuth({
         mode: 'ntlm',
         collectionUid: collection.uid,
         content: {
-          username: ntlmAuth.username,
-          password: password,
-          domain: ntlmAuth.domain
+          ...ntlmAuth,
+          [field]: value
         }
       })
     );
-  };
-
-  const handleDomainChange = (domain) => {
-    dispatch(
-      updateCollectionAuth({
-        mode: 'ntlm',
-        collectionUid: collection.uid,
-        content: {
-          username: ntlmAuth.username,
-          password: ntlmAuth.password,
-          domain: domain
-        }
-      })
-    );
-  };  
-
-
-
+  }, [dispatch, ntlmAuth, collection.uid]);
 
   return (
     <StyledWrapper className="mt-2 w-full">
       <label className="block font-medium mb-2">Username</label>
       <div className="single-line-editor-wrapper mb-2">
         <SingleLineEditor
-          value={ntlmAuth.username || ''}
+          value={ntlmAuth.username}
           theme={storedTheme}
           onSave={handleSave}
-          onChange={(val) => handleUsernameChange(val)}
+          onChange={handleFieldChange('username')}
           collection={collection}
         />
       </div>
@@ -84,10 +45,10 @@ const NTLMAuth = ({ collection }) => {
       <label className="block font-medium mb-2">Password</label>
       <div className="single-line-editor-wrapper">
         <SingleLineEditor
-          value={ntlmAuth.password || ''}
+          value={ntlmAuth.password}
           theme={storedTheme}
           onSave={handleSave}
-          onChange={(val) => handlePasswordChange(val)}
+          onChange={handleFieldChange('password')}
           collection={collection}
           isSecret={true}
         />
@@ -96,10 +57,10 @@ const NTLMAuth = ({ collection }) => {
       <label className="block font-medium mb-2">Domain</label>
       <div className="single-line-editor-wrapper">
         <SingleLineEditor
-          value={ntlmAuth.domain || ''}
+          value={ntlmAuth.domain}
           theme={storedTheme}
           onSave={handleSave}
-          onChange={(val) => handleDomainChange(val)}
+          onChange={handleFieldChange('domain')}
           collection={collection}
         />
       </div>
