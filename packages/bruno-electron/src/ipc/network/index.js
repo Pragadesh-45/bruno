@@ -38,7 +38,6 @@ const {
 const Oauth2Store = require('../../store/oauth2');
 const iconv = require('iconv-lite');
 const FormData = require('form-data');
-const { NtlmClient } = require('axios-ntlm');
 const { createFormData } = require('../../utils/form-data');
 const { findItemInCollectionByPathname } = require('../../utils/collection');
 const { NtlmClient } = require('axios-ntlm');
