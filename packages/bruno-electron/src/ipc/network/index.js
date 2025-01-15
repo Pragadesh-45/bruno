@@ -42,6 +42,7 @@ const FormData = require('form-data');
 const { NtlmClient } = require('axios-ntlm');
 const { createFormData } = require('../../utils/form-data');
 const { findItemInCollectionByPathname } = require('../../utils/collection');
+const { NtlmClient } = require('axios-ntlm');
 
 const safeStringifyJSON = (data) => {
   try {
