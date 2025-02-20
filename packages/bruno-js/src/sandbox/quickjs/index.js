@@ -38,6 +38,34 @@ const executeQuickJsVm = ({ script: externalScript, context: externalContext, sc
   if (externalScript === 'null') return null;
   if (externalScript === 'undefined') return undefined;
 
+  if (externalScript === '[]') return [];
+  if (externalScript === '{}') return {};
+
+  if (
+    (externalScript.startsWith('[') && externalScript.endsWith(']')) ||
+    (externalScript.startsWith('{') && externalScript.endsWith('}'))
+  ) {
+    try {
+      return JSON.parse(externalScript);
+    } catch (e) {
+      console.warn('Invalid array/object literal:', externalScript);
+      return externalScript;
+    }
+  }
+
+  if (
+    (externalScript.startsWith('"') && externalScript.endsWith('"')) ||
+    (externalScript.startsWith("'") && externalScript.endsWith("'"))
+  ) {
+    const quotedValue = externalScript.slice(1, -1);
+
+    const parsedNumber = Number(quotedValue);
+    if (!isNaN(parsedNumber)) {
+      return parsedNumber;
+    }
+
+    return quotedValue;
+  }
 
   const vm = QuickJSSyncContext;
 
@@ -87,6 +115,34 @@ const executeQuickJsVmAsync = async ({ script: externalScript, context: external
   if (externalScript === 'null') return null;
   if (externalScript === 'undefined') return undefined;
 
+  if (externalScript === '[]') return [];
+  if (externalScript === '{}') return {};
+
+  if (
+    (externalScript.startsWith('[') && externalScript.endsWith(']')) ||
+    (externalScript.startsWith('{') && externalScript.endsWith('}'))
+  ) {
+    try {
+      return JSON.parse(externalScript);
+    } catch (e) {
+      console.warn('Invalid array/object literal:', externalScript);
+      return externalScript;
+    }
+  }
+
+  if (
+    (externalScript.startsWith('"') && externalScript.endsWith('"')) ||
+    (externalScript.startsWith("'") && externalScript.endsWith("'"))
+  ) {
+    const quotedValue = externalScript.slice(1, -1);
+
+    const parsedNumber = Number(quotedValue);
+    if (!isNaN(parsedNumber)) {
+      return parsedNumber;
+    }
+
+    return quotedValue;
+  }
 
   try {
     const module = await newQuickJSWASMModule();
