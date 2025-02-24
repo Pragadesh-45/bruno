@@ -5,7 +5,7 @@ import { requestUrlChanged, updateRequestMethod } from 'providers/ReduxStore/sli
 import { saveRequest } from 'providers/ReduxStore/slices/collections/actions';
 import HttpMethodSelector from './HttpMethodSelector';
 import { useTheme } from 'providers/Theme';
-import { IconDeviceFloppy, IconArrowRight, IconCode } from '@tabler/icons';
+import { IconDeviceFloppy, IconArrowRight, IconCode, IconEyeOff, IconEye } from '@tabler/icons';
 import SingleLineEditor from 'components/SingleLineEditor';
 import { isMacOS } from 'utils/common/platform';
 import StyledWrapper from './StyledWrapper';
@@ -23,6 +23,7 @@ const QueryUrl = ({ item, collection, handleRun }) => {
 
   const [methodSelectorWidth, setMethodSelectorWidth] = useState(90);
   const [generateCodeItemModalOpen, setGenerateCodeItemModalOpen] = useState(false);
+  const [isEyeOff, setIsEyeOff] = useState(true);
 
   useEffect(() => {
     const el = document.querySelector('.method-selector-container');
@@ -90,6 +91,33 @@ const QueryUrl = ({ item, collection, handleRun }) => {
           maxWidth: `calc(100% - ${methodSelectorWidth}px)`
         }}
       >
+        <div
+          className="infotip mr-3"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsEyeOff(!isEyeOff);
+            console.log(isEyeOff ? "eye" : "eye off");
+          }}
+        >
+          {isEyeOff ? (
+            <IconEyeOff
+              color={theme.requestTabs.icon.color}
+              strokeWidth={1.5}
+              size={22}
+              className="cursor-pointer"
+            />
+          ) : (
+            <IconEye
+              color={theme.requestTabs.icon.color}
+              strokeWidth={1.5}
+              size={22}
+              className="cursor-pointer"
+            />
+          )}
+          <span className="infotiptext text-xs">
+            URL Preview
+          </span>
+        </div>
         <SingleLineEditor
           ref={editorRef}
           value={url}
