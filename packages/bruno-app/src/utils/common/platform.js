@@ -2,6 +2,7 @@ import trim from 'lodash/trim';
 import path from 'path';
 import slash from './slash';
 import platform from 'platform';
+import brunoPath from '@usebruno/path';
 
 export const isElectron = () => {
   if (!window) {
@@ -16,33 +17,16 @@ export const resolveRequestFilename = (name) => {
 };
 
 export const getSubdirectoriesFromRoot = (rootPath, pathname) => {
-  // convert to unix style path
-  pathname = slash(pathname);
-  rootPath = slash(rootPath);
-
-  const relativePath = path.relative(rootPath, pathname);
-  return relativePath ? relativePath.split(path.sep) : [];
+  const relativePath = brunoPath.relative(rootPath, pathname);
+  return relativePath ? relativePath.split(/[/\\]/) : [];
 };
-
 
 export const isWindowsPath = (pathname) => {
-
-  if (!isWindowsOS()) {
-    return false;
-  }
-
-  // Check for Windows drive letter format (e.g., "C:\")
-  const hasDriveLetter = /^[a-zA-Z]:\\/.test(pathname);
-  
-  // Check for UNC path format (e.g., "\\server\share") a.k.a. network path || WSL path
-  const isUNCPath = pathname.startsWith('\\\\');
-
-  return hasDriveLetter || isUNCPath;
+  return brunoPath.isWindowsPath(pathname);
 };
 
-
 export const getDirectoryName = (pathname) => {
-  return isWindowsPath(pathname) ? path.win32.dirname(pathname) : path.dirname(pathname);
+  return brunoPath.dirname(pathname);
 };
 
 export const isWindowsOS = () => {

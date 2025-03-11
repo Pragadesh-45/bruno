@@ -4,6 +4,7 @@ const fsPromises = require('fs/promises');
 const { dialog } = require('electron');
 const isValidPathname = require('is-valid-path');
 const os = require('os');
+const brunoPath = require('@usebruno/path');
 
 const exists = async (p) => {
   try {
@@ -45,27 +46,23 @@ const hasSubDirectories = (dir) => {
 
 const normalizeAndResolvePath = (pathname) => {
   if (isSymbolicLink(pathname)) {
-    const absPath = path.dirname(pathname);
-    const targetPath = path.resolve(absPath, fs.readlinkSync(pathname));
+    const absPath = brunoPath.dirname(pathname);
+    const targetPath = brunoPath.resolve(absPath, fs.readlinkSync(pathname));
     if (isFile(targetPath) || isDirectory(targetPath)) {
-      return path.resolve(targetPath);
+      return brunoPath.resolve(targetPath);
     }
     console.error(`Cannot resolve link target "${pathname}" (${targetPath}).`);
     return '';
   }
-  return path.resolve(pathname);
+  return brunoPath.resolve(pathname);
 };
 
 function isWSLPath(pathname) {
-  // Check if the path starts with the WSL prefix
-  // eg. "\\wsl.localhost\Ubuntu\home\user\bruno\collection\scripting\api\req\getHeaders.bru"
-  return pathname.startsWith('/wsl.localhost/') || pathname.startsWith('\\wsl.localhost\\');
+  return brunoPath.isWindowsUNCPath(pathname) && pathname.includes('wsl.localhost');
 }
 
 function normalizeWslPath(pathname) {
-  // Replace the WSL path prefix and convert forward slashes to backslashes
-  // This is done to achieve WSL paths (linux style) to Windows UNC equivalent (Universal Naming Conversion)
-  return pathname.replace(/^\/wsl.localhost/, '\\\\wsl.localhost').replace(/\//g, '\\');
+  return brunoPath.toWin32(pathname.replace(/^\/wsl\.localhost/, '\\\\wsl.localhost'));
 }
 
 const writeFile = async (pathname, content, isBinary = false) => {
