@@ -10,6 +10,9 @@ import StyledWrapper from './StyledWrapper';
 import { useState, useMemo, useEffect } from 'react';
 import { useTheme } from 'providers/Theme/index';
 import { getEncoding, prettifyJson, uuid } from 'utils/common/index';
+import ResponseWarning from '../ResponseWarning';
+
+const { ipcRenderer } = window;
 
 const formatResponse = (data, dataRaw, mode, filter) => {
   if (data === undefined || !dataRaw) {
@@ -76,6 +79,9 @@ const QueryResult = ({ item, collection, data, dataBuffer, dataRaw, width, disab
     [data, dataRaw, mode, filter]
   );
   const { displayedTheme } = useTheme();
+  const [showLargeResponse, setShowLargeResponse] = useState(false);
+  
+  const RESPONSE_SIZE_THRESHOLD = 5 * 1024 * 1024; // 5MB in bytes
 
   const debouncedResultFilterOnChange = debounce((e) => {
     setFilter(e.target.value);
@@ -130,6 +136,87 @@ const QueryResult = ({ item, collection, data, dataBuffer, dataRaw, width, disab
 
   const queryFilterEnabled = useMemo(() => mode.includes('json'), [mode]);
   const hasScriptError = item.preRequestScriptErrorMessage || item.postResponseScriptErrorMessage;
+
+  const handleReveal = () => setShowLargeResponse(true);
+  
+  const handleSave = () => {
+    if (item?.response?.dataBuffer) {
+      ipcRenderer.invoke('renderer:save-response-to-file', item.response, item?.requestSent?.url);
+    }
+  };
+
+  const handleCopy = () => {
+    // Copy raw response data
+    if (dataRaw) {
+      navigator.clipboard.writeText(dataRaw);
+    }
+  };
+
+  const handleRevealInBrowser = () => {
+    if (dataBuffer && contentType) {
+      try {
+        // Convert base64 to binary data if needed
+        let binaryData;
+        if (typeof dataBuffer === 'string') {
+          // If it's base64 encoded
+          binaryData = atob(dataBuffer);
+          // Convert to Uint8Array
+          const bytes = new Uint8Array(binaryData.length);
+          for (let i = 0; i < binaryData.length; i++) {
+            bytes[i] = binaryData.charCodeAt(i);
+          }
+          binaryData = bytes;
+        } else {
+          // If it's already binary data
+          binaryData = dataBuffer;
+        }
+
+        // Create blob with proper encoding
+        const blob = new Blob([binaryData], { type: contentType });
+        const url = URL.createObjectURL(blob);
+        console.log('url', url);
+
+        // Open in new window
+        const newWindow = window.open();
+        if (newWindow) {
+          newWindow.document.write(`
+            <html>
+              <head>
+                <title>Response Preview</title>
+              </head>
+              <body style="margin:0;padding:0;">
+                ${contentType.includes('image') 
+                  ? `<img src="${url}" style="max-width:100%;height:auto;" />`
+                  : `<iframe src="${url}" style="width:100%;height:100vh;border:none;"></iframe>`
+                }
+              </body>
+            </html>
+          `);
+          newWindow.document.close();
+        }
+
+        // Clean up blob URL after a delay
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (error) {
+        console.error('Error opening in browser:', error);
+        // Fallback to direct data URL if blob creation fails
+        const dataUrl = `data:${contentType};base64,${dataBuffer}`;
+        window.open(dataUrl, '_blank');
+      }
+    }
+  };
+
+  if (!showLargeResponse && dataBuffer && dataBuffer.length > RESPONSE_SIZE_THRESHOLD) {
+    return (
+      <ResponseWarning 
+        size={dataBuffer.length}
+        onReveal={handleReveal}
+        onSave={handleSave}
+        onCopy={handleCopy}
+        onRevealInBrowser={handleRevealInBrowser}
+      />
+    );
+  }
 
   return (
     <StyledWrapper
