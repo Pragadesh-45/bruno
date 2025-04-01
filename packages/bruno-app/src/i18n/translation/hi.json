@@ -1,0 +1,20 @@
+{
+    "COMMON": {
+        "COLLECTIONS": "संग्रह",
+        "DOCUMENTATION": "दस्तावेज़ीकरण",
+        "REPORT_ISSUES": "समस्याओं की रिपोर्ट करें",
+        "GITHUB": "गिटहब",
+        "DISCORD": "डिस्कॉर्ड",
+        "TWITTER": "ट्विटर"
+    },
+    "WELCOME": {
+        "ABOUT_BRUNO": "API को एक्सप्लोर और टेस्ट करने के लिए ओपन सोर्स IDE",
+        "LINKS": "लिंक्स",
+        "CREATE_COLLECTION": "संग्रह बनाएं",
+        "OPEN_COLLECTION": "संग्रह खोलें",
+        "IMPORT_COLLECTION": "संग्रह आयात करें",
+        "COLLECTION_IMPORT_SUCCESS": "संग्रह सफलतापूर्वक आयात किया गया",
+        "COLLECTION_IMPORT_ERROR": "संग्रह आयात करते समय त्रुटि हुई। अधिक जानकारी के लिए लॉग देखें।",
+        "COLLECTION_OPEN_ERROR": "संग्रह खोलते समय त्रुटि हुई"
+    }
+} 

@@ -24,7 +24,8 @@ const initialState = {
     },
     font: {
       codeFont: 'default'
-    }
+    },
+    language: 'en'
   },
   cookies: [],
   taskQueue: [],

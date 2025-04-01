@@ -8,11 +8,13 @@ import * as Yup from 'yup';
 import toast from 'react-hot-toast';
 import path from 'utils/common/path';
 import { IconTrash } from '@tabler/icons';
+import { useTranslation } from 'react-i18next';
 
 const General = ({ close }) => {
   const preferences = useSelector((state) => state.app.preferences);
   const dispatch = useDispatch();
   const inputFileCaCertificateRef = useRef();
+  const { i18n } = useTranslation();
 
   const preferencesSchema = Yup.object().shape({
     sslVerification: Yup.boolean(),
@@ -35,7 +37,8 @@ const General = ({ close }) => {
       })
       .test('isValidTimeout', 'Request Timeout must be equal or greater than 0', (value) => {
         return value === undefined || Number(value) >= 0;
-      })
+      }),
+    language: Yup.string().oneOf(['en', 'ta', 'hi', 'ja', 'kn', 'ml', 'te', 'zh'])
   });
 
   const formik = useFormik({
@@ -50,7 +53,8 @@ const General = ({ close }) => {
       },
       timeout: preferences.request.timeout,
       storeCookies: get(preferences, 'request.storeCookies', true),
-      sendCookies: get(preferences, 'request.sendCookies', true)
+      sendCookies: get(preferences, 'request.sendCookies', true),
+      language: get(preferences, 'language', 'en')
     },
     validationSchema: preferencesSchema,
     onSubmit: async (values) => {
@@ -79,10 +83,12 @@ const General = ({ close }) => {
           timeout: newPreferences.timeout,
           storeCookies: newPreferences.storeCookies,
           sendCookies: newPreferences.sendCookies
-        }
+        },
+        language: newPreferences.language
       })
     )
       .then(() => {
+        i18n.changeLanguage(newPreferences.language);
         close();
       })
       .catch((err) => console.log(err) && toast.error('Failed to update preferences'));
@@ -102,6 +108,29 @@ const General = ({ close }) => {
   return (
     <StyledWrapper>
       <form className="bruno-form" onSubmit={formik.handleSubmit}>
+        <div className="mb-3 flex items-center">
+          <label className="settings-label" htmlFor="language">
+            Language
+          </label>
+          <select
+            id="language"
+            name="language"
+            className="block textbox"
+            onChange={formik.handleChange}
+            value={formik.values.language}
+          >
+            <option value="en">English</option>
+            <option value="fr">Français (French)</option>
+            <option value="hi">हिंदी (Hindi)</option>
+            <option value="ja">日本語 (Japanese)</option>
+            <option value="kn">ಕನ್ನಡ (Kannada)</option>
+            <option value="ml">മലയാളം (Malayalam)</option>
+            <option value="ta">தமிழ் (Tamil)</option>
+            <option value="te">తెలుగు (Telugu)</option>
+            <option value="zh">中文 (Chinese)</option>
+
+          </select>
+        </div>
         <div className="flex items-center my-2">
           <input
             id="sslVerification"

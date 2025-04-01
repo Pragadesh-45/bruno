@@ -1,0 +1,20 @@
+{
+    "COMMON": {
+        "COLLECTIONS": "コレクション",
+        "DOCUMENTATION": "ドキュメント",
+        "REPORT_ISSUES": "問題を報告",
+        "GITHUB": "GitHub",
+        "DISCORD": "Discord",
+        "TWITTER": "Twitter"
+    },
+    "WELCOME": {
+        "ABOUT_BRUNO": "APIを探索・テストするためのオープンソースIDE",
+        "LINKS": "リンク",
+        "CREATE_COLLECTION": "コレクションを作成",
+        "OPEN_COLLECTION": "コレクションを開く",
+        "IMPORT_COLLECTION": "コレクションをインポート",
+        "COLLECTION_IMPORT_SUCCESS": "コレクションのインポートに成功しました",
+        "COLLECTION_IMPORT_ERROR": "コレクションのインポート中にエラーが発生しました。詳細はログを確認してください。",
+        "COLLECTION_OPEN_ERROR": "コレクションを開く際にエラーが発生しました"
+    }
+} 

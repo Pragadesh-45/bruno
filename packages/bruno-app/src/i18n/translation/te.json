@@ -1,0 +1,20 @@
+{
+    "COMMON": {
+        "COLLECTIONS": "సేకరణలు",
+        "DOCUMENTATION": "డాక్యుమెంటేషన్",
+        "REPORT_ISSUES": "సమస్యలను నివేదించండి",
+        "GITHUB": "గిట్‌హబ్",
+        "DISCORD": "డిస్కార్డ్",
+        "TWITTER": "ట్విటర్"
+    },
+    "WELCOME": {
+        "ABOUT_BRUNO": "API లను అన్వేషించడానికి మరియు పరీక్షించడానికి ఓపెన్ సోర్స్ IDE",
+        "LINKS": "లింకులు",
+        "CREATE_COLLECTION": "సేకరణ సృష్టించండి",
+        "OPEN_COLLECTION": "సేకరణ తెరవండి",
+        "IMPORT_COLLECTION": "సేకరణ దిగుమతి చేయండి",
+        "COLLECTION_IMPORT_SUCCESS": "సేకరణ విజయవంతంగా దిగుమతి చేయబడింది",
+        "COLLECTION_IMPORT_ERROR": "సేకరణను దిగుమతి చేయడంలో లోపం సంభవించింది. మరిన్ని వివరాలకు లాగ్‌లను చూడండి.",
+        "COLLECTION_OPEN_ERROR": "సేకరణను తెరవడంలో లోపం సంభవించింది"
+    }
+} 

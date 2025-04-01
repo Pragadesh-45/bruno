@@ -1,0 +1,20 @@
+{
+    "COMMON": {
+        "COLLECTIONS": "Collections",
+        "DOCUMENTATION": "Documentation",
+        "REPORT_ISSUES": "Signaler des problèmes",
+        "GITHUB": "GitHub",
+        "DISCORD": "Discord",
+        "TWITTER": "Twitter"
+    },
+    "WELCOME": {
+        "ABOUT_BRUNO": "IDE open source pour explorer et tester les API",
+        "LINKS": "Liens",
+        "CREATE_COLLECTION": "Créer une collection",
+        "OPEN_COLLECTION": "Ouvrir une collection",
+        "IMPORT_COLLECTION": "Importer une collection",
+        "COLLECTION_IMPORT_SUCCESS": "Collection importée avec succès",
+        "COLLECTION_IMPORT_ERROR": "Une erreur s'est produite lors de l'importation de la collection. Consultez les logs pour plus d'informations.",
+        "COLLECTION_OPEN_ERROR": "Une erreur s'est produite lors de l'ouverture de la collection"
+    }
+} 

@@ -1,0 +1,20 @@
+{
+    "COMMON": {
+        "COLLECTIONS": "集合",
+        "DOCUMENTATION": "文档",
+        "REPORT_ISSUES": "报告问题",
+        "GITHUB": "GitHub",
+        "DISCORD": "Discord",
+        "TWITTER": "Twitter"
+    },
+    "WELCOME": {
+        "ABOUT_BRUNO": "用于探索和测试API的开源IDE",
+        "LINKS": "链接",
+        "CREATE_COLLECTION": "创建集合",
+        "OPEN_COLLECTION": "打开集合",
+        "IMPORT_COLLECTION": "导入集合",
+        "COLLECTION_IMPORT_SUCCESS": "集合导入成功",
+        "COLLECTION_IMPORT_ERROR": "导入集合时发生错误。查看日志以获取更多信息。",
+        "COLLECTION_OPEN_ERROR": "打开集合时发生错误"
+    }
+} 

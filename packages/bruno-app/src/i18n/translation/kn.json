@@ -1,0 +1,20 @@
+{
+    "COMMON": {
+        "COLLECTIONS": "ಸಂಗ್ರಹಗಳು",
+        "DOCUMENTATION": "ದಸ್ತಾವೇಜು",
+        "REPORT_ISSUES": "ಸಮಸ್ಯೆಗಳನ್ನು ವರದಿ ಮಾಡಿ",
+        "GITHUB": "ಗಿಟ್‌ಹಬ್",
+        "DISCORD": "ಡಿಸ್ಕಾರ್ಡ್",
+        "TWITTER": "ಟ್ವಿಟರ್"
+    },
+    "WELCOME": {
+        "ABOUT_BRUNO": "API ಗಳನ್ನು ಅನ್ವೇಷಿಸಲು ಮತ್ತು ಪರೀಕ್ಷಿಸಲು ತೆರೆದ ಮೂಲ IDE",
+        "LINKS": "ಕೊಂಡಿಗಳು",
+        "CREATE_COLLECTION": "ಸಂಗ್ರಹ ರಚಿಸಿ",
+        "OPEN_COLLECTION": "ಸಂಗ್ರಹ ತೆರೆಯಿರಿ",
+        "IMPORT_COLLECTION": "ಸಂಗ್ರಹ ಆಮದು ಮಾಡಿ",
+        "COLLECTION_IMPORT_SUCCESS": "ಸಂಗ್ರಹ ಯಶಸ್ವಿಯಾಗಿ ಆಮದು ಮಾಡಲಾಗಿದೆ",
+        "COLLECTION_IMPORT_ERROR": "ಸಂಗ್ರಹವನ್ನು ಆಮದು ಮಾಡುವಾಗ ದೋಷ ಸಂಭವಿಸಿದೆ. ಹೆಚ್ಚಿನ ಮಾಹಿತಿಗಾಗಿ ಲಾಗ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.",
+        "COLLECTION_OPEN_ERROR": "ಸಂಗ್ರಹವನ್ನು ತೆರೆಯುವಾಗ ದೋಷ ಸಂಭವಿಸಿದೆ"
+    }
+} 

@@ -37,7 +37,8 @@ const defaultPreferences = {
       password: ''
     },
     bypassProxy: ''
-  }
+  },
+  language: 'en'
 };
 
 const preferencesSchema = Yup.object().shape({
@@ -69,7 +70,8 @@ const preferencesSchema = Yup.object().shape({
       password: Yup.string().max(1024)
     }).optional(),
     bypassProxy: Yup.string().optional().max(1024)
-  })
+  }),
+  language: Yup.string().oneOf(['en', 'ta', 'hi', 'kn', 'te', 'ml', 'fr', 'zh', 'ja'])
 });
 
 class PreferencesStore {
