@@ -87,6 +87,14 @@ const builder = async (yargs) => {
       type: 'boolean',
       default: false
     })
+    .option('folders', {
+      describe: 'Comma-separated list of folders to run',
+      type: 'string'
+    })
+    .option('files', {
+      describe: 'Comma-separated list of .bru files to run',
+      type: 'string'
+    })
     .option('cacert', {
       type: 'string',
       description: 'CA certificate to verify peer against'
@@ -213,13 +221,18 @@ const builder = async (yargs) => {
     )
     .example('$0 run --client-cert-config client-cert-config.json', 'Run a request with Client certificate configurations')
     .example('$0 run folder --delay delayInMs', 'Run a folder with given miliseconds delay between each requests.')
-    .example('$0 run --noproxy', 'Run requests with system proxy disabled');
+    .example('$0 run --noproxy', 'Run requests with system proxy disabled')
+    .example('$0 run --folders folder1,folder2', 'Run all requests in multiple folders')
+    .example('$0 run --files file1.bru,file2.bru', 'Run specific .bru files')
+    .example('$0 run --folders folder1,folder2 --files file1.bru,file2.bru', 'Run requests from multiple folders and specific files');
 };
 
 const handler = async function (argv) {
   try {
     let {
       filename,
+      folders,
+      files,
       cacert,
       ignoreTruststore,
       disableCookies,
@@ -280,15 +293,49 @@ const handler = async function (argv) {
       }
     }
 
+    if (!filename && !folders && !files) {
+      filename = './';
+      recursive = true;
+    }
+
     if (filename && filename.length) {
       const pathExists = await exists(filename);
       if (!pathExists) {
         console.error(chalk.red(`File or directory ${filename} does not exist`));
         process.exit(constants.EXIT_STATUS.ERROR_FILE_NOT_FOUND);
       }
-    } else {
-      filename = './';
-      recursive = true;
+    }
+
+    let folderList = [];
+    if (folders) {
+      folderList = folders.split(',').map(f => f.trim()).filter(f => f.length > 0);
+      for (const folder of folderList) {
+        const pathExists = await exists(folder);
+        if (!pathExists) {
+          console.error(chalk.red(`Folder ${folder} does not exist`));
+          process.exit(constants.EXIT_STATUS.ERROR_FILE_NOT_FOUND);
+        }
+        if (!isDirectory(folder)) {
+          console.error(chalk.red(`${folder} is not a directory`));
+          process.exit(constants.EXIT_STATUS.ERROR_FILE_NOT_FOUND);
+        }
+      }
+    }
+
+    let fileList = [];
+    if (files) {
+      fileList = files.split(',').map(f => f.trim()).filter(f => f.length > 0);
+      for (const file of fileList) {
+        const pathExists = await exists(file);
+        if (!pathExists) {
+          console.error(chalk.red(`File ${file} does not exist`));
+          process.exit(constants.EXIT_STATUS.ERROR_FILE_NOT_FOUND);
+        }
+        if (!isFile(file)) {
+          console.error(chalk.red(`${file} is not a file`));
+          process.exit(constants.EXIT_STATUS.ERROR_FILE_NOT_FOUND);
+        }
+      }
     }
 
     const runtimeVariables = {};
@@ -401,43 +448,67 @@ const handler = async function (argv) {
       });
     }
 
-    const _isFile = isFile(filename);
     let results = [];
-
     let requestItems = [];
 
-    if (_isFile) {
-      console.log(chalk.yellow('Running Request \n'));
-      const bruContent = fs.readFileSync(filename, 'utf8');
-      const requestItem = bruToJson(bruContent);
-      requestItem.pathname = path.resolve(collectionPath, filename);
-      requestItems.push(requestItem);
-    }
-
-    const _isDirectory = isDirectory(filename);
-    if (_isDirectory) {
-      if (!recursive) {
-        console.log(chalk.yellow('Running Folder \n'));
-      } else {
-        console.log(chalk.yellow('Running Folder Recursively \n'));
+    const collectRequestsFromSource = (filename, sourceType) => {
+      const _isFile = isFile(filename);
+      if (_isFile) {
+        if (sourceType === 'single') {
+          console.log(chalk.yellow('Running Request \n'));
+        }
+        const bruContent = fs.readFileSync(filename, 'utf8');
+        const requestItem = bruToJson(bruContent);
+        requestItem.pathname = path.resolve(collectionPath, filename);
+        return [requestItem];
       }
-      const resolvedFilepath = path.resolve(filename);
-      if (resolvedFilepath === collectionPath) {
-        requestItems = getAllRequestsInFolder(collection?.items, recursive);
-      } else {
-        const folderItem = findItemInCollection(collection, resolvedFilepath);
-        if (folderItem) {
-          requestItems = getAllRequestsInFolder(folderItem.items, recursive);
+
+      const _isDirectory = isDirectory(filename);
+      if (_isDirectory) {
+        if (sourceType === 'single') {
+          if (!recursive) {
+            console.log(chalk.yellow('Running Folder \n'));
+          } else {
+            console.log(chalk.yellow('Running Folder Recursively \n'));
+          }
+        }
+        const resolvedFilepath = path.resolve(filename);
+        if (resolvedFilepath === collectionPath) {
+          return getAllRequestsInFolder(collection?.items, recursive);
+        } else {
+          const folderItem = findItemInCollection(collection, resolvedFilepath);
+          if (folderItem) {
+            return getAllRequestsInFolder(folderItem.items, recursive);
+          }
         }
       }
+      return [];
+    };
 
-      if (testsOnly) {
-        requestItems = requestItems.filter((iter) => {
-          const requestHasTests = iter.request?.tests;
-          const requestHasActiveAsserts = iter.request?.assertions.some((x) => x.enabled) || false;
-          return requestHasTests || requestHasActiveAsserts;
-        });
+    if (filename && filename.length) {
+      requestItems.push(...collectRequestsFromSource(filename, 'single'));
+    }
+
+    if (folderList.length > 0) {
+      console.log(chalk.yellow(`Running ${folderList.length} Folder${folderList.length > 1 ? 's' : ''} ${recursive ? 'Recursively' : ''} \n`));
+      for (const folder of folderList) {
+        requestItems.push(...collectRequestsFromSource(folder, 'multiple'));
       }
+    }
+
+    if (fileList.length > 0) {
+      console.log(chalk.yellow(`Running ${fileList.length} File${fileList.length > 1 ? 's' : ''} \n`));
+      for (const file of fileList) {
+        requestItems.push(...collectRequestsFromSource(file, 'multiple'));
+      }
+    }
+
+    if (testsOnly) {
+      requestItems = requestItems.filter((iter) => {
+        const requestHasTests = iter.request?.tests;
+        const requestHasActiveAsserts = iter.request?.assertions.some((x) => x.enabled) || false;
+        return requestHasTests || requestHasActiveAsserts;
+      });
     }
 
     const runtime = getJsSandboxRuntime(sandbox);
