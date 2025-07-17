@@ -4,6 +4,7 @@ import Welcome from 'components/Welcome';
 import RequestTabs from 'components/RequestTabs';
 import RequestTabPanel from 'components/RequestTabPanel';
 import Sidebar from 'components/Sidebar';
+import ExpandButton from 'components/Sidebar/ExpandButton';
 import StatusBar from 'components/StatusBar';
 // import ErrorCapture from 'components/ErrorCapture';
 import { useSelector } from 'react-redux';
@@ -49,6 +50,7 @@ export default function Main() {
   const activeTabUid = useSelector((state) => state.tabs.activeTabUid);
   const isDragging = useSelector((state) => state.app.isDragging);
   const showHomePage = useSelector((state) => state.app.showHomePage);
+  const sidebarCollapsed = useSelector((state) => state.app.sidebarCollapsed);
   const isConsoleOpen = useSelector((state) => state.logs.isConsoleOpen);
   const mainSectionRef = useRef(null);
 
@@ -59,7 +61,7 @@ export default function Main() {
   return (
     // <ErrorCapture>
       <div className="flex flex-col h-screen max-h-screen overflow-hidden">
-        <div 
+        <div
           ref={mainSectionRef}
           className="flex-1 min-h-0 flex"
           style={{
@@ -79,8 +81,9 @@ export default function Main() {
               )}
             </section>
           </StyledWrapper>
+          {sidebarCollapsed && <ExpandButton />}
         </div>
-        
+
         <Devtools mainSectionRef={mainSectionRef} />
         <StatusBar />
       </div>

@@ -5,10 +5,10 @@ import CreateCollection from '../CreateCollection';
 import ImportCollection from 'components/Sidebar/ImportCollection';
 import ImportCollectionLocation from 'components/Sidebar/ImportCollectionLocation';
 
-import { IconDots } from '@tabler/icons';
+import { IconDots, IconChevronLeft } from '@tabler/icons';
 import { useState, forwardRef, useRef } from 'react';
 import { useDispatch } from 'react-redux';
-import { showHomePage } from 'providers/ReduxStore/slices/app';
+import { showHomePage, toggleSidebarCollapse } from 'providers/ReduxStore/slices/app';
 import { openCollection, importCollection } from 'providers/ReduxStore/slices/collections/actions';
 import StyledWrapper from './StyledWrapper';
 import { multiLineMsg } from "utils/common";
@@ -63,6 +63,10 @@ const TitleBar = () => {
     ipcRenderer.invoke('renderer:open-devtools');
   };
 
+  const handleCollapseSidebar = () => {
+    dispatch(toggleSidebarCollapse());
+  };
+
   return (
     <StyledWrapper className="px-2 py-2">
       {createCollectionModalOpen ? <CreateCollection onClose={() => setCreateCollectionModalOpen(false)} /> : null}
@@ -85,6 +89,13 @@ const TitleBar = () => {
           bruno
         </button>
         <div className="collection-dropdown flex flex-grow items-center justify-end">
+          <button
+            className="collapse-button flex items-center justify-center p-1 mr-2 rounded transition-colors duration-200"
+            onClick={handleCollapseSidebar}
+            title="Collapse Sidebar (Ctrl/Cmd + ←)"
+          >
+            <IconChevronLeft size={16} />
+          </button>
           <Dropdown onCreate={onMenuDropdownCreate} icon={<MenuIcon />} placement="bottom-start">
             <div
               className="dropdown-item"
