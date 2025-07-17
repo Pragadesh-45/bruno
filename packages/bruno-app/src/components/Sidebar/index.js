@@ -13,6 +13,7 @@ const MAX_LEFT_SIDEBAR_WIDTH = 600;
 
 const Sidebar = () => {
   const leftSidebarWidth = useSelector((state) => state.app.leftSidebarWidth);
+  const sidebarCollapsed = useSelector((state) => state.app.sidebarCollapsed);
   const { version } = useApp();
   const [asideWidth, setAsideWidth] = useState(leftSidebarWidth);
 
@@ -22,7 +23,7 @@ const Sidebar = () => {
   const [dragging, setDragging] = useState(false);
 
   const handleMouseMove = (e) => {
-    if (dragging) {
+    if (dragging && !sidebarCollapsed) {
       e.preventDefault();
       let width = e.clientX + 2;
       if (width < MIN_LEFT_SIDEBAR_WIDTH || width > MAX_LEFT_SIDEBAR_WIDTH) {
@@ -48,6 +49,7 @@ const Sidebar = () => {
     }
   };
   const handleDragbarMouseDown = (e) => {
+    if (sidebarCollapsed) return; // Prevent dragging when collapsed
     e.preventDefault();
     setDragging(true);
     dispatch(
@@ -71,9 +73,12 @@ const Sidebar = () => {
     setAsideWidth(leftSidebarWidth);
   }, [leftSidebarWidth]);
 
+  // Use minimal width when collapsed, normal width when expanded
+  const currentWidth = sidebarCollapsed ? 0 : asideWidth;
+
   return (
     <StyledWrapper className="flex relative h-full">
-      <aside>
+      <aside style={{ width: currentWidth, overflow: 'hidden' }}>
         <div className="flex flex-row h-full w-full">
           <div className="flex flex-col w-full" style={{ width: asideWidth }}>
             <div className="flex flex-col flex-grow">
@@ -84,9 +89,11 @@ const Sidebar = () => {
         </div>
       </aside>
 
-      <div className="absolute drag-sidebar h-full" onMouseDown={handleDragbarMouseDown}>
-        <div className="drag-request-border" />
-      </div>
+      {!sidebarCollapsed && (
+        <div className="absolute drag-sidebar h-full" onMouseDown={handleDragbarMouseDown}>
+          <div className="drag-request-border" />
+        </div>
+      )}
     </StyledWrapper>
   );
 };
