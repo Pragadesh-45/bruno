@@ -19,6 +19,22 @@ const Wrapper = styled.div`
     }
   }
 
+  &.sidebar-right {
+    left: auto;
+    right: 8px;
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-50%) translateX(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+      }
+    }
+  }
+
   .expand-button {
     display: flex;
     align-items: center;

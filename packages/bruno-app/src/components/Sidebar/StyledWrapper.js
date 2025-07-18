@@ -60,6 +60,18 @@ const Wrapper = styled.div`
       border-left: solid 1px ${(props) => props.theme.sidebar.dragbar};
     }
   }
+
+  &.sidebar-right {
+    div.drag-sidebar {
+      left: -3px;
+      right: auto;
+
+      &:hover div.drag-request-border {
+        border-left: none;
+        border-right: solid 1px ${(props) => props.theme.sidebar.dragbar};
+      }
+    }
+  }
 `;
 
 export default Wrapper;

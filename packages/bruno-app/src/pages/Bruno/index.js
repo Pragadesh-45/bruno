@@ -52,11 +52,26 @@ export default function Main() {
   const showHomePage = useSelector((state) => state.app.showHomePage);
   const sidebarCollapsed = useSelector((state) => state.app.sidebarCollapsed);
   const isConsoleOpen = useSelector((state) => state.logs.isConsoleOpen);
+  const preferences = useSelector((state) => state.app.preferences);
+  const sidebarPosition = preferences?.layout?.sidebarPosition || 'left';
   const mainSectionRef = useRef(null);
 
   const className = classnames({
     'is-dragging': isDragging
   });
+
+  const renderContent = () => (
+    <section className="flex flex-grow flex-col overflow-hidden">
+      {showHomePage ? (
+        <Welcome />
+      ) : (
+        <>
+          <RequestTabs />
+          <RequestTabPanel key={activeTabUid} />
+        </>
+      )}
+    </section>
+  );
 
   return (
     // <ErrorCapture>
@@ -69,17 +84,17 @@ export default function Main() {
           }}
         >
           <StyledWrapper className={className} style={{ height: '100%', zIndex: 1 }}>
-            <Sidebar />
-            <section className="flex flex-grow flex-col overflow-hidden">
-              {showHomePage ? (
-                <Welcome />
-              ) : (
-                <>
-                  <RequestTabs />
-                  <RequestTabPanel key={activeTabUid} />
-                </>
-              )}
-            </section>
+            {sidebarPosition === 'left' ? (
+              <>
+                <Sidebar />
+                {renderContent()}
+              </>
+            ) : (
+              <>
+                {renderContent()}
+                <Sidebar />
+              </>
+            )}
           </StyledWrapper>
           {sidebarCollapsed && <ExpandButton />}
         </div>

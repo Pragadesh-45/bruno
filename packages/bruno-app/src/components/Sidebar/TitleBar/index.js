@@ -5,9 +5,9 @@ import CreateCollection from '../CreateCollection';
 import ImportCollection from 'components/Sidebar/ImportCollection';
 import ImportCollectionLocation from 'components/Sidebar/ImportCollectionLocation';
 
-import { IconDots, IconChevronLeft } from '@tabler/icons';
+import { IconDots, IconChevronLeft, IconChevronRight } from '@tabler/icons';
 import { useState, forwardRef, useRef } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { showHomePage, toggleSidebarCollapse } from 'providers/ReduxStore/slices/app';
 import { openCollection, importCollection } from 'providers/ReduxStore/slices/collections/actions';
 import StyledWrapper from './StyledWrapper';
@@ -20,6 +20,8 @@ const TitleBar = () => {
   const [importCollectionModalOpen, setImportCollectionModalOpen] = useState(false);
   const [importCollectionLocationModalOpen, setImportCollectionLocationModalOpen] = useState(false);
   const dispatch = useDispatch();
+  const preferences = useSelector((state) => state.app.preferences);
+  const sidebarPosition = preferences?.layout?.sidebarPosition || 'left';
   const { ipcRenderer } = window;
 
   const handleImportCollection = ({ collection }) => {
@@ -92,9 +94,9 @@ const TitleBar = () => {
           <button
             className="collapse-button flex items-center justify-center p-1 mr-2 rounded transition-colors duration-200"
             onClick={handleCollapseSidebar}
-            title="Collapse Sidebar (Ctrl/Cmd + ←)"
+            title={sidebarPosition === 'left' ? 'Collapse Sidebar (Ctrl/Cmd + ←)' : 'Expand Sidebar (Ctrl/Cmd + →)'}
           >
-            <IconChevronLeft size={16} />
+            {sidebarPosition === 'left' ? <IconChevronLeft size={16} /> : <IconChevronRight size={16} />}
           </button>
           <Dropdown onCreate={onMenuDropdownCreate} icon={<MenuIcon />} placement="bottom-start">
             <div
