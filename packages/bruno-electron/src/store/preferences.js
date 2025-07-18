@@ -39,7 +39,8 @@ const defaultPreferences = {
     bypassProxy: ''
   },
   layout: {
-    responsePaneOrientation: 'horizontal'
+    responsePaneOrientation: 'horizontal',
+    sidebarPosition: 'left'
   }
 };
 
@@ -74,7 +75,8 @@ const preferencesSchema = Yup.object().shape({
     bypassProxy: Yup.string().optional().max(1024)
   }),
   layout: Yup.object({
-    responsePaneOrientation: Yup.string().oneOf(['horizontal', 'vertical'])
+    responsePaneOrientation: Yup.string().oneOf(['horizontal', 'vertical']),
+    sidebarPosition: Yup.string().oneOf(['left', 'right'])
   })
 });
 
@@ -157,6 +159,9 @@ const preferencesUtil = {
   },
   getResponsePaneOrientation: () => {
     return get(getPreferences(), 'layout.responsePaneOrientation', 'horizontal');
+  },
+  getSidebarPosition: () => {
+    return get(getPreferences(), 'layout.sidebarPosition', 'left');
   },
   getSystemProxyEnvVariables: () => {
     const { http_proxy, HTTP_PROXY, https_proxy, HTTPS_PROXY, no_proxy, NO_PROXY } = process.env;

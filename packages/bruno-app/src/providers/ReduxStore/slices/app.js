@@ -24,6 +24,10 @@ const initialState = {
     },
     font: {
       codeFont: 'default'
+    },
+    layout: {
+      responsePaneOrientation: 'horizontal',
+      sidebarPosition: 'left'
     }
   },
   generateCode: {
