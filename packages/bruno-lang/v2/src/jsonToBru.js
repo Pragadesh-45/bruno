@@ -5,9 +5,14 @@ const { indentString } = require('./utils');
 const enabled = (items = [], key = "enabled") => items.filter((item) => item[key]);
 const disabled = (items = [], key = "enabled") => items.filter((item) => !item[key]);
 
-const quoteKey = (key) => {
-  const quotableChars = [':', '"', '{', '}', ' '];
-  return quotableChars.some(char => key.includes(char)) ? ('"' + key.replaceAll('"', '\\"') + '"') : key;
+const escapeKey = (key) => {
+  return key
+    .replaceAll('\\', '\\\\')  // Escape backslashes first
+    .replaceAll(':', '\\:')
+    .replaceAll('"', '\\"')
+    .replaceAll('{', '\\{')
+    .replaceAll('}', '\\}')
+    .replaceAll(' ', '\\ ');
 }
 
 // remove the last line if two new lines are found
@@ -89,7 +94,7 @@ const jsonToBru = (json) => {
       if (enabled(queryParams).length) {
         bru += `\n${indentString(
           enabled(queryParams)
-            .map((item) => `${quoteKey(item.name)}: ${item.value}`)
+            .map((item) => `${escapeKey(item.name)}: ${item.value}`)
             .join('\n')
         )}`;
       }
@@ -97,7 +102,7 @@ const jsonToBru = (json) => {
       if (disabled(queryParams).length) {
         bru += `\n${indentString(
           disabled(queryParams)
-            .map((item) => `~${quoteKey(item.name)}: ${item.value}`)
+            .map((item) => `~${escapeKey(item.name)}: ${item.value}`)
             .join('\n')
         )}`;
       }
