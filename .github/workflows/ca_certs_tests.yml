@@ -366,10 +366,14 @@ jobs:
           $ErrorActionPreference = "Stop"
 
           # Configure SSL to accept self-signed certificates BEFORE any network operations
+          Write-Host "Configuring SSL settings for self-signed certificates"
           [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
           [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls11 -bor [System.Net.SecurityProtocolType]::Tls
+          Write-Host "SSL configuration completed"
 
+          Write-Host "Changing to server directory"
           Set-Location e2e-tests\ca_certs\server
+          Write-Host "Current working directory: $(Get-Location)"
 
           Write-Host "current directory: $(Get-Location)"
           Write-Host "checking certificate files before starting server"
@@ -397,16 +401,31 @@ jobs:
 
           Write-Host "starting server in background"
           # Using Start-Process with output redirection to capture logs
-          $process = Start-Process -FilePath "node" -ArgumentList "index.js" -PassThru -RedirectStandardOutput "server.log" -RedirectStandardError "server.error" -NoNewWindow
-
-          Write-Host "server started with Process ID: $($process.Id)"
+          try {
+            $process = Start-Process -FilePath "node" -ArgumentList "index.js" -PassThru -RedirectStandardOutput "server.log" -RedirectStandardError "server.error" -NoNewWindow
+            Write-Host "server started with Process ID: $($process.Id)"
+            Write-Host "Process handle: $($process.Handle)"
+            Write-Host "Process has exited: $($process.HasExited)"
+          } catch {
+            Write-Host "ERROR: Failed to start server process"
+            Write-Host "Error details: $($_.Exception.Message)"
+            Write-Host "Error type: $($_.Exception.GetType().FullName)"
+            exit 1
+          }
 
           # Give server a moment to start and check if it's still running
+          Write-Host "Waiting 1 second for server to initialize..."
           Start-Sleep -Seconds 1
+          Write-Host "Checking if server process is still running..."
           if ($process.HasExited) {
-            Write-Host "Server process exited immediately with code: $($process.ExitCode)"
+            Write-Host "ERROR: Server process exited immediately with code: $($process.ExitCode)"
+            Write-Host "Process start time: $($process.StartTime)"
+            Write-Host "Process exit time: $($process.ExitTime)"
+            Write-Host "Process total processor time: $($process.TotalProcessorTime)"
           } else {
-            Write-Host "Server process is still running"
+            Write-Host "SUCCESS: Server process is still running"
+            Write-Host "Process start time: $($process.StartTime)"
+            Write-Host "Process working set: $($process.WorkingSet) bytes"
           }
 
           # wait for server to be ready with retry logic
@@ -452,26 +471,51 @@ jobs:
             }
 
             try {
+              Write-Host "Attempting to connect to server (attempt $($ElapsedTime/$WaitInterval + 1))..."
               # Use Invoke-WebRequest with SSL bypass for self-signed certificates
               $response = Invoke-WebRequest -Uri "https://localhost:8090" -SkipCertificateCheck -TimeoutSec 3 -UseBasicParsing
-              Write-Host "server is responding after $ElapsedTime seconds"
+              Write-Host "SUCCESS: server is responding after $ElapsedTime seconds"
+              Write-Host "Response status code: $($response.StatusCode)"
+              Write-Host "Response content length: $($response.Content.Length)"
               break
             } catch {
               Write-Host "server not ready yet, waiting $WaitInterval seconds... $ElapsedTime/$MaxWaitTime"
               Write-Host "Error details: $($_.Exception.Message)"
+              Write-Host "Error type: $($_.Exception.GetType().FullName)"
+              if ($_.Exception.InnerException) {
+                Write-Host "Inner exception: $($_.Exception.InnerException.Message)"
+              }
               Start-Sleep -Seconds $WaitInterval
               $ElapsedTime += $WaitInterval
             }
           }
 
           # final verification
+          Write-Host "Performing final verification of server readiness..."
           try {
             # Use Invoke-WebRequest with SSL bypass for self-signed certificates
             $response = Invoke-WebRequest -Uri "https://localhost:8090" -SkipCertificateCheck -TimeoutSec 3 -UseBasicParsing
-            Write-Host "server is ready and responding"
+            Write-Host "SUCCESS: server is ready and responding"
+            Write-Host "Final response status code: $($response.StatusCode)"
+            Write-Host "Final response content length: $($response.Content.Length)"
+            Write-Host "Server verification completed successfully"
+
+            # Final process status check
+            Write-Host "Final process status check..."
+            if ($process.HasExited) {
+              Write-Host "WARNING: Server process has exited with code: $($process.ExitCode)"
+              Write-Host "Process exit time: $($process.ExitTime)"
+            } else {
+              Write-Host "SUCCESS: Server process is still running and healthy"
+              Write-Host "Process uptime: $((Get-Date) - $process.StartTime)"
+            }
           } catch {
-            Write-Host "server failed to start within $MaxWaitTime seconds"
+            Write-Host "ERROR: server failed to start within $MaxWaitTime seconds"
             Write-Host "Final error details: $($_.Exception.Message)"
+            Write-Host "Final error type: $($_.Exception.GetType().FullName)"
+            if ($_.Exception.InnerException) {
+              Write-Host "Final inner exception: $($_.Exception.InnerException.Message)"
+            }
             # Show final server logs
             if (Test-Path "server.log") {
               $logs = Get-Content "server.log" -ErrorAction SilentlyContinue
@@ -601,10 +645,14 @@ jobs:
         $ErrorActionPreference = "Stop"
 
         # Configure SSL to accept self-signed certificates BEFORE any network operations
+        Write-Host "Configuring SSL settings for self-signed certificates"
         [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
         [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls11 -bor [System.Net.SecurityProtocolType]::Tls
+        Write-Host "SSL configuration completed"
 
+        Write-Host "Changing to server directory"
         Set-Location e2e-tests\ca_certs\server
+        Write-Host "Current working directory: $(Get-Location)"
 
         Write-Host "current directory: $(Get-Location)"
         Write-Host "checking certificate files before starting server"
@@ -632,16 +680,31 @@ jobs:
 
         Write-Host "starting server in background"
         # Using Start-Process with output redirection to capture logs
-        $process = Start-Process -FilePath "node" -ArgumentList "index.js" -PassThru -RedirectStandardOutput "server.log" -RedirectStandardError "server.error" -NoNewWindow
-
-        Write-Host "server started with Process ID: $($process.Id)"
+        try {
+          $process = Start-Process -FilePath "node" -ArgumentList "index.js" -PassThru -RedirectStandardOutput "server.log" -RedirectStandardError "server.error" -NoNewWindow
+          Write-Host "server started with Process ID: $($process.Id)"
+          Write-Host "Process handle: $($process.Handle)"
+          Write-Host "Process has exited: $($process.HasExited)"
+        } catch {
+          Write-Host "ERROR: Failed to start server process"
+          Write-Host "Error details: $($_.Exception.Message)"
+          Write-Host "Error type: $($_.Exception.GetType().FullName)"
+          exit 1
+        }
 
         # Give server a moment to start and check if it's still running
+        Write-Host "Waiting 1 second for server to initialize..."
         Start-Sleep -Seconds 1
+        Write-Host "Checking if server process is still running..."
         if ($process.HasExited) {
-          Write-Host "Server process exited immediately with code: $($process.ExitCode)"
+          Write-Host "ERROR: Server process exited immediately with code: $($process.ExitCode)"
+          Write-Host "Process start time: $($process.StartTime)"
+          Write-Host "Process exit time: $($process.ExitTime)"
+          Write-Host "Process total processor time: $($process.TotalProcessorTime)"
         } else {
-          Write-Host "Server process is still running"
+          Write-Host "SUCCESS: Server process is still running"
+          Write-Host "Process start time: $($process.StartTime)"
+          Write-Host "Process working set: $($process.WorkingSet) bytes"
         }
 
         # wait for server to be ready with retry logic
@@ -687,26 +750,51 @@ jobs:
           }
 
           try {
+            Write-Host "Attempting to connect to server (attempt $($ElapsedTime/$WaitInterval + 1))..."
             # Use Invoke-WebRequest with SSL bypass for self-signed certificates
             $response = Invoke-WebRequest -Uri "https://localhost:8090" -SkipCertificateCheck -TimeoutSec 3 -UseBasicParsing
-            Write-Host "server is responding after $ElapsedTime seconds"
+            Write-Host "SUCCESS: server is responding after $ElapsedTime seconds"
+            Write-Host "Response status code: $($response.StatusCode)"
+            Write-Host "Response content length: $($response.Content.Length)"
             break
           } catch {
             Write-Host "server not ready yet, waiting $WaitInterval seconds... $ElapsedTime/$MaxWaitTime"
             Write-Host "Error details: $($_.Exception.Message)"
+            Write-Host "Error type: $($_.Exception.GetType().FullName)"
+            if ($_.Exception.InnerException) {
+              Write-Host "Inner exception: $($_.Exception.InnerException.Message)"
+            }
             Start-Sleep -Seconds $WaitInterval
             $ElapsedTime += $WaitInterval
           }
         }
 
         # final verification
+        Write-Host "Performing final verification of server readiness..."
         try {
           # Use Invoke-WebRequest with SSL bypass for self-signed certificates
           $response = Invoke-WebRequest -Uri "https://localhost:8090" -SkipCertificateCheck -TimeoutSec 3 -UseBasicParsing
-          Write-Host "server is ready and responding"
+          Write-Host "SUCCESS: server is ready and responding"
+          Write-Host "Final response status code: $($response.StatusCode)"
+          Write-Host "Final response content length: $($response.Content.Length)"
+                      Write-Host "Server verification completed successfully"
+
+            # Final process status check
+            Write-Host "Final process status check..."
+            if ($process.HasExited) {
+              Write-Host "WARNING: Server process has exited with code: $($process.ExitCode)"
+              Write-Host "Process exit time: $($process.ExitTime)"
+            } else {
+              Write-Host "SUCCESS: Server process is still running and healthy"
+              Write-Host "Process uptime: $((Get-Date) - $process.StartTime)"
+            }
         } catch {
-          Write-Host "server failed to start within $MaxWaitTime seconds"
+          Write-Host "ERROR: server failed to start within $MaxWaitTime seconds"
           Write-Host "Final error details: $($_.Exception.Message)"
+          Write-Host "Final error type: $($_.Exception.GetType().FullName)"
+          if ($_.Exception.InnerException) {
+            Write-Host "Final inner exception: $($_.Exception.InnerException.Message)"
+          }
           # Show final server logs
           if (Test-Path "server.log") {
             $logs = Get-Content "server.log" -ErrorAction SilentlyContinue
