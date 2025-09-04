@@ -452,12 +452,8 @@ jobs:
             }
 
             try {
-              # Use a more compatible method for self-signed certificates
-              $request = [System.Net.WebRequest]::Create("https://localhost:8090")
-              $request.Timeout = 3000
-              $request.AllowAutoRedirect = $false
-              $response = $request.GetResponse()
-              $response.Close()
+              # Use Invoke-WebRequest with SSL bypass for self-signed certificates
+              $response = Invoke-WebRequest -Uri "https://localhost:8090" -SkipCertificateCheck -TimeoutSec 3 -UseBasicParsing
               Write-Host "server is responding after $ElapsedTime seconds"
               break
             } catch {
@@ -470,12 +466,8 @@ jobs:
 
           # final verification
           try {
-            # Use a more compatible method for self-signed certificates
-            $request = [System.Net.WebRequest]::Create("https://localhost:8090")
-            $request.Timeout = 3000
-            $request.AllowAutoRedirect = $false
-            $response = $request.GetResponse()
-            $response.Close()
+            # Use Invoke-WebRequest with SSL bypass for self-signed certificates
+            $response = Invoke-WebRequest -Uri "https://localhost:8090" -SkipCertificateCheck -TimeoutSec 3 -UseBasicParsing
             Write-Host "server is ready and responding"
           } catch {
             Write-Host "server failed to start within $MaxWaitTime seconds"
@@ -695,12 +687,8 @@ jobs:
           }
 
           try {
-            # Use a more compatible method for self-signed certificates
-            $request = [System.Net.WebRequest]::Create("https://localhost:8090")
-            $request.Timeout = 3000
-            $request.AllowAutoRedirect = $false
-            $response = $request.GetResponse()
-            $response.Close()
+            # Use Invoke-WebRequest with SSL bypass for self-signed certificates
+            $response = Invoke-WebRequest -Uri "https://localhost:8090" -SkipCertificateCheck -TimeoutSec 3 -UseBasicParsing
             Write-Host "server is responding after $ElapsedTime seconds"
             break
           } catch {
@@ -713,12 +701,8 @@ jobs:
 
         # final verification
         try {
-          # Use a more compatible method for self-signed certificates
-          $request = [System.Net.WebRequest]::Create("https://localhost:8090")
-          $request.Timeout = 3000
-          $request.AllowAutoRedirect = $false
-          $response = $request.GetResponse()
-          $response.Close()
+          # Use Invoke-WebRequest with SSL bypass for self-signed certificates
+          $response = Invoke-WebRequest -Uri "https://localhost:8090" -SkipCertificateCheck -TimeoutSec 3 -UseBasicParsing
           Write-Host "server is ready and responding"
         } catch {
           Write-Host "server failed to start within $MaxWaitTime seconds"
