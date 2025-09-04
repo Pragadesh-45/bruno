@@ -2,7 +2,7 @@ name: CA certs tests
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [pull/5429]
   pull_request:
     branches: [main]
 
@@ -28,26 +28,26 @@ jobs:
       - name: setup CA certificates
         run: |
           set -euo pipefail
-          
+
           cd e2e-tests/ca_certs/server
-          
+
           echo "running certificate setup"
           node setup.js
 
       - name: start test server
         run: |
           set -euo pipefail
-          
+
           cd e2e-tests/ca_certs/server
-          
+
           echo "starting server in background"
           node index.js &
-          
+
           echo "server started with PID: $!"
-          
+
           # wait for server to be ready
           sleep 5
-          
+
           # verify server is running
           if curl -k https://localhost:8090; then
             echo "server is responding"
@@ -71,7 +71,7 @@ jobs:
       - name: run cli tests
         run: |
           set -euo pipefail
-          
+
           # navigate to CA certificates test collection directory
           cd e2e-tests/ca_certs/collection
 
@@ -124,26 +124,26 @@ jobs:
     - name: setup CA certificates
       run: |
         set -euo pipefail
-        
+
         cd e2e-tests/ca_certs/server
-        
+
         echo "running certificate setup"
         node setup.js
 
     - name: start test server
       run: |
         set -euo pipefail
-        
+
         cd e2e-tests/ca_certs/server
-        
+
         echo "starting server in background"
         node index.js &
-        
+
         echo "server started with PID: $!"
-        
+
         # wait for server to be ready
         sleep 5
-        
+
         # verify server is running
         if curl -k https://localhost:8090; then
           echo "server is responding"
@@ -195,26 +195,26 @@ jobs:
       - name: setup CA certificates
         run: |
           set -euo pipefail
-          
+
           cd e2e-tests/ca_certs/server
-          
+
           echo "running certificate setup"
           node setup.js
 
       - name: start test server
         run: |
           set -euo pipefail
-          
+
           cd e2e-tests/ca_certs/server
-          
+
           echo "starting server in background"
           node index.js &
-          
+
           echo "server started with PID: $!"
-          
+
           # wait for server to be ready
           sleep 5
-          
+
           # verify server is running
           if curl -k https://localhost:8090; then
             echo "server is responding"
@@ -238,7 +238,7 @@ jobs:
       - name: run cli tests
         run: |
           set -euo pipefail
-          
+
           # navigate to CA certificates test collection directory
           cd e2e-tests/ca_certs/collection
 
@@ -277,30 +277,30 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: v22.17.0
-    
+
     - name: setup CA certificates
       run: |
         set -euo pipefail
-        
+
         cd e2e-tests/ca_certs/server
-        
+
         echo "running certificate setup"
         node setup.js
 
     - name: start test server
       run: |
         set -euo pipefail
-        
+
         cd e2e-tests/ca_certs/server
-        
+
         echo "starting server in background"
         node index.js &
-        
+
         echo "server started with PID: $!"
-        
+
         # wait for server to be ready
         sleep 5
-        
+
         # verify server is running
         if curl -k https://localhost:8090; then
           echo "server is responding"
@@ -353,9 +353,9 @@ jobs:
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = "Stop"
-          
+
           Set-Location e2e-tests\ca_certs\server
-          
+
           Write-Host "running certificate setup"
           node setup.js
 
@@ -363,10 +363,144 @@ jobs:
         shell: pwsh
         run: |
           Set-StrictMode -Version Latest
-          
+          $ErrorActionPreference = "Stop"
+
           Set-Location e2e-tests\ca_certs\server
-          
-          Start-Process -FilePath "node" -ArgumentList "index.js" -PassThru -WindowStyle Hidden
+
+          Write-Host "current directory: $(Get-Location)"
+          Write-Host "checking certificate files before starting server"
+          $certFiles = @('certs\ca-cert.pem', 'certs\ca-key.pem', 'certs\localhost-cert.pem', 'certs\localhost-key.pem')
+          foreach ($certFile in $certFiles) {
+            if (Test-Path $certFile) {
+              Write-Host "[OK] $certFile exists"
+            } else {
+              Write-Host "[MISSING] $certFile missing - server will likely fail"
+            }
+          }
+
+          Write-Host "checking if port 8090 is already in use"
+          try {
+            $netstatResult = netstat -ano | findstr :8090
+            if ($netstatResult) {
+              Write-Host "Port 8090 is already in use:"
+              Write-Host $netstatResult
+            } else {
+              Write-Host "Port 8090 is available"
+            }
+          } catch {
+            Write-Host "Could not check port status"
+          }
+
+          Write-Host "starting server in background"
+          # Using Start-Process with output redirection to capture logs
+          $process = Start-Process -FilePath "node" -ArgumentList "index.js" -PassThru -RedirectStandardOutput "server.log" -RedirectStandardError "server.error" -NoNewWindow
+
+          Write-Host "server started with Process ID: $($process.Id)"
+
+          # Allow self-signed certs for local test server
+          [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+
+          # Give server a moment to start and check if it's still running
+          Start-Sleep -Seconds 1
+          if ($process.HasExited) {
+            Write-Host "Server process exited immediately with code: $($process.ExitCode)"
+          } else {
+            Write-Host "Server process is still running"
+          }
+
+          # wait for server to be ready with retry logic
+          $MaxWaitTime = 30
+          $WaitInterval = 2
+          $ElapsedTime = 0
+
+          Write-Host "waiting for server to be ready (max $MaxWaitTime seconds)..."
+          while ($ElapsedTime -lt $MaxWaitTime) {
+
+            # Check if process has exited
+            if ($process.HasExited) {
+              Write-Host "Server process has exited with code: $($process.ExitCode)"
+              # Show server logs
+              if (Test-Path "server.log") {
+                $logs = Get-Content "server.log" -ErrorAction SilentlyContinue
+                if ($logs) {
+                  Write-Host "Server stdout logs:"
+                  foreach ($line in $logs) {
+                    Write-Host "  $line"
+                  }
+                }
+              }
+              if (Test-Path "server.error") {
+                $errorLogs = Get-Content "server.error" -ErrorAction SilentlyContinue
+                if ($errorLogs) {
+                  Write-Host "Server stderr logs:"
+                  foreach ($line in $errorLogs) {
+                    Write-Host "  $line"
+                  }
+                }
+              }
+              exit 1
+            }
+
+            # Show recent server logs
+            if (Test-Path "server.log") {
+              $logs = Get-Content "server.log" -Tail 3 -ErrorAction SilentlyContinue
+              if ($logs) {
+                $recentLogs = $logs -join '; '
+                Write-Host "Recent server logs: $recentLogs"
+              }
+            }
+
+            try {
+              # Use a more compatible method for self-signed certificates
+              $request = [System.Net.WebRequest]::Create("https://localhost:8090")
+              $request.Timeout = 3000
+              $request.AllowAutoRedirect = $false
+              $response = $request.GetResponse()
+              $response.Close()
+              Write-Host "server is responding after $ElapsedTime seconds"
+              break
+            } catch {
+              Write-Host "server not ready yet, waiting $WaitInterval seconds... $ElapsedTime/$MaxWaitTime"
+              Write-Host "Error details: $($_.Exception.Message)"
+              Start-Sleep -Seconds $WaitInterval
+              $ElapsedTime += $WaitInterval
+            }
+          }
+
+          # final verification
+          try {
+            # Use a more compatible method for self-signed certificates
+            $request = [System.Net.WebRequest]::Create("https://localhost:8090")
+            $request.Timeout = 3000
+            $request.AllowAutoRedirect = $false
+            $response = $request.GetResponse()
+            $response.Close()
+            Write-Host "server is ready and responding"
+          } catch {
+            Write-Host "server failed to start within $MaxWaitTime seconds"
+            Write-Host "Final error details: $($_.Exception.Message)"
+            # Show final server logs
+            if (Test-Path "server.log") {
+              $logs = Get-Content "server.log" -ErrorAction SilentlyContinue
+              if ($logs) {
+                Write-Host "Final server stdout logs:"
+                foreach ($line in $logs) {
+                  Write-Host "  $line"
+                }
+              }
+            }
+            if (Test-Path "server.error") {
+              $errorLogs = Get-Content "server.error" -ErrorAction SilentlyContinue
+              if ($errorLogs) {
+                Write-Host "Final server stderr logs:"
+                foreach ($line in $errorLogs) {
+                  Write-Host "  $line"
+                }
+              }
+            }
+            Stop-Process $process -Force -ErrorAction SilentlyContinue
+            exit 1
+          }
 
       - name: install node dependencies
         run: npm ci --legacy-peer-deps
@@ -385,7 +519,7 @@ jobs:
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = "Stop"
-          
+
           # navigate to CA certificates test collection directory
           Set-Location e2e-tests\ca_certs\collection
 
@@ -395,7 +529,11 @@ jobs:
           [xml]$xml1 = Get-Content junit1.xml
           $testsuites1 = if ($xml1.testsuites) { $xml1.testsuites.testsuite } else { $xml1.testsuite }
           $errorCount1 = ($testsuites1 | Where-Object { $_.errors -eq "0" } | Measure-Object).Count
-          if ($errorCount1 -ne 1) { exit 1 }
+          Write-Host "Test 1 (insecure): errorCount=$errorCount1, expected=1"
+          if ($errorCount1 -ne 1) {
+            Write-Host "Test 1 failed - exiting"
+            exit 1
+          }
 
           Write-Host "with default/sytem ca certs"
           # should pass
@@ -403,7 +541,11 @@ jobs:
           [xml]$xml2 = Get-Content junit2.xml
           $testsuites2 = if ($xml2.testsuites) { $xml2.testsuites.testsuite } else { $xml2.testsuite }
           $errorCount2 = ($testsuites2 | Where-Object { $_.errors -eq "0" } | Measure-Object).Count
-          if ($errorCount2 -ne 1) { exit 1 }
+          Write-Host "Test 2 (system certs): errorCount=$errorCount2, expected=1"
+          if ($errorCount2 -ne 1) {
+            Write-Host "Test 2 failed - exiting"
+            exit 1
+          }
 
           Write-Host "with only VALID custom ca cert and NO default/system ca certs"
           # should pass
@@ -411,7 +553,11 @@ jobs:
           [xml]$xml3 = Get-Content junit3.xml
           $testsuites3 = if ($xml3.testsuites) { $xml3.testsuites.testsuite } else { $xml3.testsuite }
           $errorCount3 = ($testsuites3 | Where-Object { $_.errors -eq "0" } | Measure-Object).Count
-          if ($errorCount3 -ne 1) { exit 1 }
+          Write-Host "Test 3 (custom cert): errorCount=$errorCount3, expected=1"
+          if ($errorCount3 -ne 1) {
+            Write-Host "Test 3 failed - exiting"
+            exit 1
+          }
 
           Write-Host "with INVALID custom ca cert and default/system ca certs"
           # should pass
@@ -449,9 +595,9 @@ jobs:
       run: |
         Set-StrictMode -Version Latest
         $ErrorActionPreference = "Stop"
-        
+
         Set-Location e2e-tests\ca_certs\server
-        
+
         Write-Host "running certificate setup"
         node setup.js
 
@@ -459,10 +605,144 @@ jobs:
       shell: pwsh
       run: |
         Set-StrictMode -Version Latest
-        
+        $ErrorActionPreference = "Stop"
+
         Set-Location e2e-tests\ca_certs\server
-        
-        Start-Process -FilePath "node" -ArgumentList "index.js" -PassThru -WindowStyle Hidden
+
+        Write-Host "current directory: $(Get-Location)"
+        Write-Host "checking certificate files before starting server"
+        $certFiles = @('certs\ca-cert.pem', 'certs\ca-key.pem', 'certs\localhost-cert.pem', 'certs\localhost-key.pem')
+        foreach ($certFile in $certFiles) {
+          if (Test-Path $certFile) {
+            Write-Host "[OK] $certFile exists"
+          } else {
+            Write-Host "[MISSING] $certFile missing - server will likely fail"
+          }
+        }
+
+        Write-Host "checking if port 8090 is already in use"
+        try {
+          $netstatResult = netstat -ano | findstr :8090
+          if ($netstatResult) {
+            Write-Host "Port 8090 is already in use:"
+            Write-Host $netstatResult
+          } else {
+            Write-Host "Port 8090 is available"
+          }
+        } catch {
+          Write-Host "Could not check port status"
+        }
+
+        Write-Host "starting server in background"
+        # Using Start-Process with output redirection to capture logs
+        $process = Start-Process -FilePath "node" -ArgumentList "index.js" -PassThru -RedirectStandardOutput "server.log" -RedirectStandardError "server.error" -NoNewWindow
+
+        Write-Host "server started with Process ID: $($process.Id)"
+
+        # Allow self-signed certs for local test server
+        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+
+        # Give server a moment to start and check if it's still running
+        Start-Sleep -Seconds 1
+        if ($process.HasExited) {
+          Write-Host "Server process exited immediately with code: $($process.ExitCode)"
+        } else {
+          Write-Host "Server process is still running"
+        }
+
+        # wait for server to be ready with retry logic
+        $MaxWaitTime = 30
+        $WaitInterval = 2
+        $ElapsedTime = 0
+
+        Write-Host "waiting for server to be ready (max $MaxWaitTime seconds)..."
+        while ($ElapsedTime -lt $MaxWaitTime) {
+
+          # Check if process has exited
+          if ($process.HasExited) {
+            Write-Host "Server process has exited with code: $($process.ExitCode)"
+            # Show server logs
+            if (Test-Path "server.log") {
+              $logs = Get-Content "server.log" -ErrorAction SilentlyContinue
+              if ($logs) {
+                Write-Host "Server stdout logs:"
+                foreach ($line in $logs) {
+                  Write-Host "  $line"
+                }
+              }
+            }
+            if (Test-Path "server.error") {
+              $errorLogs = Get-Content "server.error" -ErrorAction SilentlyContinue
+              if ($errorLogs) {
+                Write-Host "Server stderr logs:"
+                foreach ($line in $errorLogs) {
+                  Write-Host "  $line"
+                }
+              }
+            }
+            exit 1
+          }
+
+          # Show recent server logs
+          if (Test-Path "server.log") {
+            $logs = Get-Content "server.log" -Tail 3 -ErrorAction SilentlyContinue
+            if ($logs) {
+              $recentLogs = $logs -join '; '
+              Write-Host "Recent server logs: $recentLogs"
+            }
+          }
+
+          try {
+            # Use a more compatible method for self-signed certificates
+            $request = [System.Net.WebRequest]::Create("https://localhost:8090")
+            $request.Timeout = 3000
+            $request.AllowAutoRedirect = $false
+            $response = $request.GetResponse()
+            $response.Close()
+            Write-Host "server is responding after $ElapsedTime seconds"
+            break
+          } catch {
+            Write-Host "server not ready yet, waiting $WaitInterval seconds... $ElapsedTime/$MaxWaitTime"
+            Write-Host "Error details: $($_.Exception.Message)"
+            Start-Sleep -Seconds $WaitInterval
+            $ElapsedTime += $WaitInterval
+          }
+        }
+
+        # final verification
+        try {
+          # Use a more compatible method for self-signed certificates
+          $request = [System.Net.WebRequest]::Create("https://localhost:8090")
+          $request.Timeout = 3000
+          $request.AllowAutoRedirect = $false
+          $response = $request.GetResponse()
+          $response.Close()
+          Write-Host "server is ready and responding"
+        } catch {
+          Write-Host "server failed to start within $MaxWaitTime seconds"
+          Write-Host "Final error details: $($_.Exception.Message)"
+          # Show final server logs
+          if (Test-Path "server.log") {
+            $logs = Get-Content "server.log" -ErrorAction SilentlyContinue
+            if ($logs) {
+              Write-Host "Final server stdout logs:"
+              foreach ($line in $logs) {
+                Write-Host "  $line"
+              }
+            }
+          }
+          if (Test-Path "server.error") {
+            $errorLogs = Get-Content "server.error" -ErrorAction SilentlyContinue
+            if ($errorLogs) {
+              Write-Host "Final server stderr logs:"
+              foreach ($line in $errorLogs) {
+                Write-Host "  $line"
+              }
+            }
+          }
+          Stop-Process $process -Force -ErrorAction SilentlyContinue
+          exit 1
+        }
 
     - name: install node dependencies
       run: npm ci --legacy-peer-deps
