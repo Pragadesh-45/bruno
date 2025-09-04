@@ -365,6 +365,10 @@ jobs:
           Set-StrictMode -Version Latest
           $ErrorActionPreference = "Stop"
 
+          # Configure SSL to accept self-signed certificates BEFORE any network operations
+          [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls11 -bor [System.Net.SecurityProtocolType]::Tls
+
           Set-Location e2e-tests\ca_certs\server
 
           Write-Host "current directory: $(Get-Location)"
@@ -396,9 +400,6 @@ jobs:
           $process = Start-Process -FilePath "node" -ArgumentList "index.js" -PassThru -RedirectStandardOutput "server.log" -RedirectStandardError "server.error" -NoNewWindow
 
           Write-Host "server started with Process ID: $($process.Id)"
-
-          # Allow self-signed certs for local test server
-          [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 
           # Give server a moment to start and check if it's still running
           Start-Sleep -Seconds 1
@@ -607,6 +608,10 @@ jobs:
         Set-StrictMode -Version Latest
         $ErrorActionPreference = "Stop"
 
+        # Configure SSL to accept self-signed certificates BEFORE any network operations
+        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls11 -bor [System.Net.SecurityProtocolType]::Tls
+
         Set-Location e2e-tests\ca_certs\server
 
         Write-Host "current directory: $(Get-Location)"
@@ -638,9 +643,6 @@ jobs:
         $process = Start-Process -FilePath "node" -ArgumentList "index.js" -PassThru -RedirectStandardOutput "server.log" -RedirectStandardError "server.error" -NoNewWindow
 
         Write-Host "server started with Process ID: $($process.Id)"
-
-        # Allow self-signed certs for local test server
-        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 
         # Give server a moment to start and check if it's still running
         Start-Sleep -Seconds 1
