@@ -4,6 +4,7 @@ const fsPromises = require('fs/promises');
 const fsExtra = require('fs-extra');
 const os = require('os');
 const path = require('path');
+const { envJsonToBruV2, bruToEnvJsonV2 } = require('@usebruno/lang');
 const { ipcMain, shell, dialog, app } = require('electron');
 const { 
   parseRequest,
@@ -89,6 +90,15 @@ const validatePathIsInsideCollection = (filePath, lastOpenedCollections) => {
     throw new Error(`Path: ${filePath} should be inside a collection`);
   }
 }
+
+const parseBrunoEnvToJson = (bruContent, fileName) => {
+  const environment = bruToEnvJsonV2(bruContent);
+  // Set the name from the filename if not provided
+  if (!environment.name) {
+    environment.name = fileName.replace('.bru', '');
+  }
+  return environment;
+};
 
 const registerRendererEventHandlers = (mainWindow, watcher, lastOpenedCollections) => {
   // create collection
@@ -376,6 +386,141 @@ const registerRendererEventHandlers = (mainWindow, watcher, lastOpenedCollection
       fs.unlinkSync(envFilePath);
 
       environmentSecretsStore.deleteEnvironment(collectionPathname, environmentName);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  });
+
+  // Export single collection environment
+  ipcMain.handle('renderer:export-collection-environment', async (event, { environment, format = 'json', filePath }) => {
+    try {
+      // Ensure the directory exists
+      if (!fs.existsSync(filePath)) {
+        fs.mkdirSync(filePath, { recursive: true });
+      }
+
+      const cleanEnvironment = {
+        name: environment.name,
+        variables: environment.variables.map((variable) => {
+          const varCopy = { ...variable };
+          delete varCopy.uid; // Remove UID for clean export
+          if (varCopy.secret) {
+            varCopy.value = ''; // Remove secret values for security
+          }
+          return varCopy;
+        })
+      };
+
+      if (format === 'bru') {
+        const bruContent = envJsonToBruV2(cleanEnvironment);
+        const fileName = `${cleanEnvironment.name.replace(/[^a-zA-Z0-9-_]/g, '_')}.bru`;
+        const fullPath = path.join(filePath, fileName);
+        await fs.promises.writeFile(fullPath, bruContent, 'utf8');
+      } else if (format === 'json') {
+        const jsonContent = JSON.stringify(cleanEnvironment, null, 2);
+        const fileName = `${cleanEnvironment.name.replace(/[^a-zA-Z0-9-_]/g, '_')}.json`;
+        const fullPath = path.join(filePath, fileName);
+        await fs.promises.writeFile(fullPath, jsonContent, 'utf8');
+      } else {
+        throw new Error(`Unsupported format: ${format}`);
+      }
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  });
+
+  // Export collection environments
+  ipcMain.handle('renderer:export-collection-environments', async (event, { collectionPath, collectionName, format = 'bru', filePath = null }) => {
+    try {
+      const envDirPath = path.join(collectionPath, 'environments');
+
+      if (!fs.existsSync(envDirPath)) {
+        throw new Error('No environments directory found');
+      }
+
+      const envFiles = fs.readdirSync(envDirPath).filter((file) => file.endsWith('.bru'));
+
+      if (envFiles.length === 0) {
+        throw new Error('No collection environments to export');
+      }
+
+      if (format === 'bru') {
+        let exportDir;
+
+        if (filePath) {
+          // use provided file path
+          exportDir = filePath;
+        } else {
+          // fallback to dialog for backward compatibility
+          const { filePaths } = await dialog.showOpenDialog(mainWindow, {
+            properties: ['openDirectory'],
+            title: 'Select folder to save .bru files'
+          });
+
+          if (!filePaths || filePaths.length === 0) {
+            throw new Error('Export cancelled by user');
+          }
+
+          exportDir = filePaths[0];
+        }
+
+        // Copy individual .bru files for each environment
+        for (const envFile of envFiles) {
+          const sourcePath = path.join(envDirPath, envFile);
+          const destPath = path.join(exportDir, envFile);
+
+          await fs.promises.copyFile(sourcePath, destPath);
+        }
+
+        // Don't return anything - just complete successfully
+      } else if (format === 'json') {
+        // Parse BRU files and convert to JSON format
+        const files = [];
+        for (const envFile of envFiles) {
+          const sourcePath = path.join(envDirPath, envFile);
+          const bruContent = await fs.promises.readFile(sourcePath, 'utf8');
+
+          // Parse BRU content to extract environment data
+          const environment = parseBrunoEnvToJson(bruContent, envFile);
+          const jsonContent = JSON.stringify(environment, null, 2);
+          const jsonFileName = envFile.replace('.bru', '.json');
+
+          files.push({
+            fileName: jsonFileName,
+            content: jsonContent,
+            format: 'json'
+          });
+        }
+
+        let exportDir;
+
+        if (filePath) {
+          // use provided file path
+          exportDir = filePath;
+        } else {
+          // fallback to dialog for backward compatibility
+          const { filePaths } = await dialog.showOpenDialog(mainWindow, {
+            properties: ['openDirectory'],
+            title: 'Select folder to save .json files'
+          });
+
+          if (!filePaths || filePaths.length === 0) {
+            throw new Error('Export cancelled by user');
+          }
+
+          exportDir = filePaths[0];
+        }
+
+        // Write individual .json files for each environment
+        for (const file of files) {
+          const destPath = path.join(exportDir, file.fileName);
+          await fs.promises.writeFile(destPath, file.content, 'utf8');
+        }
+
+        // Don't return anything - just complete successfully
+      } else {
+        throw new Error(`Unsupported format: ${format}`);
+      }
     } catch (error) {
       return Promise.reject(error);
     }
