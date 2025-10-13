@@ -4,6 +4,7 @@ const fsPromises = require('fs/promises');
 const fsExtra = require('fs-extra');
 const os = require('os');
 const path = require('path');
+const { bruToEnvJsonV2 } = require('@usebruno/lang');
 const { ipcMain, shell, dialog, app } = require('electron');
 const { 
   parseRequest,
@@ -21,6 +22,7 @@ const brunoConverters = require('@usebruno/converters');
 const { postmanToBruno } = brunoConverters;
 const { cookiesStore } = require('../store/cookies');
 const { parseLargeRequestWithRedaction } = require('../utils/parse');
+const { wsClient } = require('../ipc/network/ws-event-handlers');
 
 const {
   writeFile,
@@ -90,6 +92,15 @@ const validatePathIsInsideCollection = (filePath, lastOpenedCollections) => {
     throw new Error(`Path: ${filePath} should be inside a collection`);
   }
 }
+
+const parseBrunoEnvToJson = (bruContent, fileName) => {
+  const environment = bruToEnvJsonV2(bruContent);
+  // Set the name from the filename if not provided
+  if (!environment.name) {
+    environment.name = fileName.replace('.bru', '');
+  }
+  return environment;
+};
 
 const registerRendererEventHandlers = (mainWindow, watcher, lastOpenedCollections) => {
   // create collection
@@ -382,6 +393,39 @@ const registerRendererEventHandlers = (mainWindow, watcher, lastOpenedCollection
     }
   });
 
+  // Export single collection environment
+  ipcMain.handle('renderer:export-collection-environment', async (event, { environment, format = 'json', filePath }) => {
+    try {
+      // Ensure the directory exists
+      if (!fs.existsSync(filePath)) {
+        fs.mkdirSync(filePath, { recursive: true });
+      }
+
+      const cleanEnvironment = {
+        name: environment.name,
+        variables: environment.variables.map((variable) => {
+          const varCopy = { ...variable };
+          delete varCopy.uid; // Remove UID for clean export
+          if (varCopy.secret) {
+            varCopy.value = ''; // Remove secret values for security
+          }
+          return varCopy;
+        })
+      };
+
+      if (format === 'json') {
+        const jsonContent = JSON.stringify(cleanEnvironment, null, 2);
+        const fileName = `${cleanEnvironment.name.replace(/[^a-zA-Z0-9-_]/g, '_')}.json`;
+        const fullPath = path.join(filePath, fileName);
+        await fs.promises.writeFile(fullPath, jsonContent, 'utf8');
+      } else {
+        throw new Error(`Unsupported format: ${format}`);
+      }
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  });
+
   // rename item
   ipcMain.handle('renderer:rename-item-name', async (event, { itemPath, newName }) => {
     try {
@@ -556,7 +600,7 @@ const registerRendererEventHandlers = (mainWindow, watcher, lastOpenedCollection
         }
 
         fs.rmSync(pathname, { recursive: true, force: true });
-      } else if (['http-request', 'graphql-request', 'grpc-request'].includes(type)) {
+      } else if (['http-request', 'graphql-request', 'grpc-request', 'ws-request'].includes(type)) {
         if (!fs.existsSync(pathname)) {
           return Promise.reject(new Error('The file does not exist'));
         }
@@ -583,6 +627,12 @@ const registerRendererEventHandlers = (mainWindow, watcher, lastOpenedCollection
       console.log(`watcher stopWatching: ${collectionPath}`);
       watcher.removeWatcher(collectionPath, mainWindow, collectionUid);
       lastOpenedCollections.remove(collectionPath);
+
+      // If wsclient was initialised for any collections that are opened
+      // then close for the current collection
+      if (wsClient) {
+        wsClient.closeForCollection(collectionUid);
+      }
     }
   });
 
@@ -602,7 +652,7 @@ const registerRendererEventHandlers = (mainWindow, watcher, lastOpenedCollection
       // Recursive function to parse the collection items and create files/folders
       const parseCollectionItems = (items = [], currentPath) => {
         items.forEach(async (item) => {
-          if (['http-request', 'graphql-request', 'grpc-request'].includes(item.type)) {
+          if (['http-request', 'graphql-request', 'grpc-request', 'ws-request'].includes(item.type)) {
             let sanitizedFilename = sanitizeName(item?.filename || `${item.name}.bru`);
             const content = await stringifyRequestViaWorker(item);
             const filePath = path.join(currentPath, sanitizedFilename);

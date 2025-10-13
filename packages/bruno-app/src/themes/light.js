@@ -102,13 +102,15 @@ const lightTheme = {
       options: '#ca7811',
       head: '#ca7811'
     },
-    grpc: '#6366f1'
+    grpc: '#6366f1',
+    ws: '#f59e0b'
   },
 
   requestTabPanel: {
     url: {
       bg: '#f3f3f3',
-      icon: '#515151'
+      icon: '#515151',
+      errorHoverBg: '#fef2f2'
     },
     dragbar: {
       border: '#efefef',
@@ -276,7 +278,10 @@ const lightTheme = {
         bg: 'white',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.45)'
       }
-    }
+    },
+    searchLineHighlightCurrent: 'rgba(120,120,120,0.10)',
+    searchMatch: '#B8860B',
+    searchMatchActive: '#DAA520'
   },
 
   table: {
@@ -304,6 +309,13 @@ const lightTheme = {
     hoverBg: 'rgba(139, 139, 139, 0.05)', // Matching the border color with reduced opacity
     transition: 'all 0.1s ease'
   },
+
+  tooltip: {
+    bg: '#374151',
+    color: '#ffffff',
+    shortcutColor: '#f59e0b'
+  },
+
   infoTip: {
     bg: 'white',
     border: '#e0e0e0',
