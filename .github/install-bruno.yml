@@ -1,0 +1,32 @@
+name: Install Bruno CLI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  setup-and-install:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '25'
+
+      # - name: Install missing dependencies (libatomic)
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y libatomic1
+
+      - name: Install Bruno CLI globally
+        run: npm install -g @usebruno/cli
+
+      - name: Verify Bruno installation
+        run: |
+          bruno --version
