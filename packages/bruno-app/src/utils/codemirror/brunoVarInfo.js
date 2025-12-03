@@ -232,8 +232,8 @@ export const renderVarInfo = (token, options) => {
   // Check if variable is read-only (process.env, runtime, and undefined variables cannot be edited)
   const isReadOnly = scopeInfo.type === 'process.env' || scopeInfo.type === 'runtime' || scopeInfo.type === 'undefined';
 
-  // Get raw value from scope
-  const rawValue = scopeInfo.value || '';
+  // Get raw value from scope (ensure it's always a string for CodeMirror) #usebruno/bruno/#6265
+  const rawValue = scopeInfo.value != null ? String(scopeInfo.value) : '';
 
   // Check if variable should be masked:
   const isSecret = scopeInfo.type !== 'undefined' ? isVariableSecret(scopeInfo) : false;
