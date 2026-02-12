@@ -1,6 +1,47 @@
 const _ = require('lodash');
 
 /**
+ * Strips @description('''...''') or @description("...") from end of pair.value and sets pair.description.
+ * Double-quoted form supports backslash-escaped characters (e.g. \" for a literal quote).
+ * @param {Object} pair - The pair object (must have value as string)
+ */
+const extractDescription = (pair) => {
+  if (!_.isString(pair.value)) {
+    return;
+  }
+  // Multiline: @description('''...''')
+  const tripleMatch = pair.value.match(/\s*@description\('''([\s\S]*?)'''\)\s*$/);
+  if (tripleMatch) {
+    const raw = tripleMatch[1];
+    if (raw.includes('\n')) {
+      // Content was indented by 4 spaces during stringify; strip them back.
+      pair.description = raw
+        .split('\n')
+        .map((line) => (line.startsWith('    ') ? line.slice(4) : line))
+        .join('\n')
+        .trim();
+    } else {
+      pair.description = raw.trim();
+    }
+    pair.value = pair.value.slice(0, -tripleMatch[0].length).trim();
+    return;
+  }
+  // Single-line: @description("...") with optional escaped content
+  const doubleMatch = pair.value.match(/\s*@description\("((?:\\.|[^"\\])*)"\)\s*$/);
+  if (doubleMatch) {
+    let decoded;
+    try {
+      decoded = JSON.parse('"' + doubleMatch[1] + '"');
+    } catch {
+      decoded = doubleMatch[1].replace(/\\"/g, '"');
+    }
+    pair.description = decoded.trim();
+    pair.value = pair.value.slice(0, -doubleMatch[0].length).trim();
+    return;
+  }
+};
+
+/**
  * Maps a pair list to an array of key-value pairs
  * @param {Array} pairList - The pair list from the AST
  * @param {boolean} parseEnabled - Whether to parse the enabled/disabled state from the name
@@ -11,7 +52,8 @@ const mapPairListToKeyValPairs = (pairList = [], parseEnabled = true) => {
     return [];
   }
   return _.map(pairList[0], (pair) => {
-    let name = _.keys(pair)[0];
+    // Skip the internal __desc marker when resolving the real key name
+    let name = _.keys(pair).find((k) => k !== '__desc');
     let value = pair[name];
 
     if (!parseEnabled) {
@@ -27,11 +69,23 @@ const mapPairListToKeyValPairs = (pairList = [], parseEnabled = true) => {
       enabled = false;
     }
 
-    return {
+    const result = {
       name,
       value,
       enabled
     };
+
+    if (pair.__desc !== undefined) {
+      // Got parsed by the grammar rule, no regex needed
+      result.description = pair.__desc;
+    } else {
+      // The serializer uses double-quoted @description("...") only when the description itself
+      // contains ''' (triple-quotes can't be embedded inside triple-quoted delimiters).
+      // That form is not handled by the grammar rule, so regex extraction is still needed.
+      extractDescription(result);
+    }
+
+    return result;
   });
 };
 
@@ -46,7 +100,8 @@ const mapRequestParams = (pairList = [], type) => {
     return [];
   }
   return _.map(pairList[0], (pair) => {
-    let name = _.keys(pair)[0];
+    // Skip the internal __desc marker when resolving the real key name
+    let name = _.keys(pair).find((k) => k !== '__desc');
     let value = pair[name];
     let enabled = true;
     if (name && name.length && name.charAt(0) === '~') {
@@ -54,12 +109,24 @@ const mapRequestParams = (pairList = [], type) => {
       enabled = false;
     }
 
-    return {
+    const result = {
       name,
       value,
       enabled,
       type
     };
+
+    if (pair.__desc !== undefined) {
+      // Got parsed by the grammar rule, no regex needed
+      result.description = pair.__desc;
+    } else {
+      // The serializer uses double-quoted @description("...") only when the description itself
+      // contains ''' (triple-quotes can't be embedded inside triple-quoted delimiters).
+      // That form is not handled by the grammar rule, so regex extraction is still needed.
+      extractDescription(result);
+    }
+
+    return result;
   });
 };
 
@@ -106,9 +173,10 @@ const mapPairListToKeyValPairsMultipart = (pairList = [], parseEnabled = true) =
 
   return pairs.map((pair) => {
     pair.type = 'text';
+    // Description is already handled inside mapPairListToKeyValPairs
     multipartExtractContentType(pair);
 
-    if (pair.value.startsWith('@file(') && pair.value.endsWith(')')) {
+    if (_.isString(pair.value) && pair.value.startsWith('@file(') && pair.value.endsWith(')')) {
       let filestr = pair.value.replace(/^@file\(/, '').replace(/\)$/, '');
       pair.type = 'file';
       pair.value = filestr.split('|');
@@ -160,6 +228,7 @@ const concatArrays = (objValue, srcValue) => {
 module.exports = {
   mapPairListToKeyValPairs,
   mapRequestParams,
+  extractDescription,
   multipartExtractContentType,
   fileExtractContentType,
   mapPairListToKeyValPairsMultipart,

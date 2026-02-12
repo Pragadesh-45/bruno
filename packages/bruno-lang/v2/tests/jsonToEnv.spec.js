@@ -58,6 +58,42 @@ describe('jsonToEnv', () => {
     expect(output).toEqual(expected);
   });
 
+  it('should stringify description in vars (triple-quoted when single-line)', () => {
+    const input = {
+      variables: [
+        {
+          name: 'url',
+          value: 'http://localhost:3000',
+          enabled: true,
+          description: 'Base API URL.'
+        }
+      ]
+    };
+
+    const output = parser(input);
+    expect(output).toEqual(`vars {
+  @description('''Base API URL.''')
+  url: http://localhost:3000
+}
+`);
+  });
+
+  it('should stringify multiline description with triple-quoted literal newlines', () => {
+    const input = {
+      variables: [
+        {
+          name: 'url',
+          value: 'http://localhost:3000',
+          enabled: true,
+          description: 'Line one\nLine two'
+        }
+      ]
+    };
+
+    const output = parser(input);
+    expect(output).toContain('@description(\'\'\'\n    Line one\n    Line two\n  \'\'\')');
+  });
+
   it('should stringify secret vars', () => {
     const input = {
       variables: [
@@ -139,6 +175,30 @@ vars:secret [
 ]
 `;
     expect(output).toEqual(expected);
+  });
+
+  it('should emit @description prefix even for multiline variables', () => {
+    const input = {
+      variables: [
+        {
+          name: 'json_data',
+          value: '{\n  "name": "test"\n}',
+          enabled: true,
+          description: 'A multiline JSON blob'
+        }
+      ]
+    };
+
+    const output = parser(input);
+    expect(output).toEqual(`vars {
+  @description('''A multiline JSON blob''')
+  json_data: '''
+    {
+      "name": "test"
+    }
+  '''
+}
+`);
   });
 
   it('should stringify multiline variables', () => {

@@ -1,6 +1,7 @@
 const ohm = require('ohm-js');
 const _ = require('lodash');
 const { safeParseJson, outdentString } = require('./utils');
+const { extractDescription } = require('./common/semantic-utils');
 
 const grammar = ohm.grammar(`Bru {
   BruFile = (meta | query | headers | auth | auths | vars | script | tests | docs)*
@@ -8,7 +9,7 @@ const grammar = ohm.grammar(`Bru {
 
   // Oauth2 additional parameters
   authOauth2Configs = oauth2AuthReqConfig | oauth2AccessTokenReqConfig | oauth2RefreshTokenReqConfig
-  oauth2AuthReqConfig = oauth2AuthReqHeaders | oauth2AuthReqQueryParams 
+  oauth2AuthReqConfig = oauth2AuthReqHeaders | oauth2AuthReqQueryParams
   oauth2AccessTokenReqConfig = oauth2AccessTokenReqHeaders | oauth2AccessTokenReqQueryParams | oauth2AccessTokenReqBody
   oauth2RefreshTokenReqConfig = oauth2RefreshTokenReqHeaders | oauth2RefreshTokenReqQueryParams | oauth2RefreshTokenReqBody
 
@@ -27,7 +28,7 @@ const grammar = ohm.grammar(`Bru {
   // Dictionary Blocks
   dictionary = st* "{" pairlist? tagend
   pairlist = optionalnl* pair (~tagend stnl* pair)* (~tagend space)*
-  pair = st* (quoted_key | key) st* ":" st* value st*
+  pair = descriptionprefix? st* (quoted_key | key) st* ":" st* value st*
   disable_char = "~"
   quote_char = "\\""
   esc_char = "\\\\"
@@ -35,13 +36,26 @@ const grammar = ohm.grammar(`Bru {
   quoted_key_char = ~(quote_char | esc_quote_char | nl) any
   quoted_key = disable_char? quote_char (esc_quote_char | quoted_key_char)* quote_char
   key = keychar*
-  value = multilinetextblock | valuechar*
+  value = multilinetextblock | singlelinevalue_optdesc
+  singlelinevalue_optdesc = valuechar_before_desc* (st* "@" "description" "(" "'''" descriptionTripleContent "'''" ")" st*)?
+  valuechar_before_desc = ~(st* "@" "description" "(" "'''") valuechar
+  descriptionTripleContent = (~"'''" any)*
+
+  // Prefix description annotation: @description('''...''') on its own line before a key:value pair.
+  // Supports multiline values (unlike the suffix form).
+  // Double-quoted form is used when the description itself contains ''' (cannot embed inside triple-quoted).
+  descriptionprefix = descriptionprefix_triple | descriptionprefix_double
+  descriptionprefix_triple = st* "@" "description" "(" "'''" descriptionTripleContent "'''" ")" st* nl
+  descriptionprefix_double = st* "@" "description" "(" "\\"" descriptionDoubleChar* "\\"" ")" st* nl
+  descriptionDoubleChar = descriptionDoubleEsc | descriptionDoubleNorm
+  descriptionDoubleEsc = "\\\\" any
+  descriptionDoubleNorm = ~"\\"" ~nl any
 
   // Text Blocks
   textblock = textline (~tagend nl textline)*
   textline = textchar*
   textchar = ~nl any
-  
+
   meta = "meta" dictionary
 
   auth = "auth" dictionary
@@ -84,7 +98,8 @@ const mapPairListToKeyValPairs = (pairList = [], parseEnabled = true) => {
     return [];
   }
   return _.map(pairList[0], (pair) => {
-    let name = _.keys(pair)[0];
+    // Skip the internal __desc marker when resolving the real key name
+    let name = _.keys(pair).find((k) => k !== '__desc');
     let value = pair[name];
 
     if (!parseEnabled) {
@@ -100,11 +115,23 @@ const mapPairListToKeyValPairs = (pairList = [], parseEnabled = true) => {
       enabled = false;
     }
 
-    return {
+    const result = {
       name,
       value,
       enabled
     };
+
+    if (pair.__desc !== undefined) {
+      // Got parsed by the grammar rule, no regex needed
+      result.description = pair.__desc;
+    } else {
+      // The serializer uses double-quoted @description("...") only when the description itself
+      // contains ''' (triple-quotes can't be embedded inside triple-quoted delimiters).
+      // That form is not handled by the grammar rule, so regex extraction is still needed.
+      extractDescription(result);
+    }
+
+    return result;
   });
 };
 
@@ -142,9 +169,40 @@ const sem = grammar.createSemantics().addAttribute('ast', {
   pairlist(_1, pair, _2, rest, _3) {
     return [pair.ast, ...rest.ast];
   },
-  pair(_1, key, _2, _3, _4, value, _5) {
+  descriptionprefix(alt) {
+    return alt.ast;
+  },
+  descriptionprefix_triple(_st, _at, _desc, _lp, _open, descContent, _close, _rp, _st2, _nl) {
+    const raw = descContent.sourceString;
+    if (raw.includes('\n')) {
+      return raw.split('\n').map((line) => (line.startsWith('    ') ? line.slice(4) : line)).join('\n').trim();
+    }
+    return raw.trim();
+  },
+  descriptionprefix_double(_st, _at, _desc, _lp, _dqOpen, descChars, _dqClose, _rp, _st2, _nl) {
+    return descChars.sourceString.replace(/\\(\\|"|n|r|t)/g, (_, c) => {
+      if (c === '\\') return '\\';
+      if (c === '"') return '"';
+      if (c === 'n') return '\n';
+      if (c === 'r') return '\r';
+      if (c === 't') return '\t';
+      return c;
+    });
+  },
+  pair(descPrefix, _1, key, _2, _3, _4, value, _5) {
     let res = {};
-    res[key.ast] = value.ast ? value.ast.trim() : '';
+    const valueAst = value.ast;
+    const prefixDesc = descPrefix.children.length > 0 ? descPrefix.children[0].ast : undefined;
+
+    if (valueAst && typeof valueAst === 'object' && '__value' in valueAst) {
+      res[key.ast] = valueAst.__value;
+      // Prefix description takes precedence over suffix description
+      res.__desc = prefixDesc !== undefined ? prefixDesc : valueAst.__desc;
+      return res;
+    }
+
+    res[key.ast] = valueAst ? valueAst.trim() : '';
+    if (prefixDesc !== undefined) res.__desc = prefixDesc;
     return res;
   },
   quoted_key(disabled, _1, chars, _2) {
@@ -163,23 +221,36 @@ const sem = grammar.createSemantics().addAttribute('ast', {
     return chars.sourceString ? chars.sourceString.trim() : '';
   },
   value(chars) {
-    if (chars.ctorName === 'list') {
-      return chars.ast;
-    }
-    try {
-      let isMultiline = chars.sourceString?.startsWith(`'''`) && chars.sourceString?.endsWith(`'''`);
-      if (isMultiline) {
-        const multilineString = chars.sourceString?.replace(/^'''|'''$/g, '');
-        return multilineString
+    // Delegate to the matched child's semantic action.
+    // multilinetextblock and singlelinevalue_optdesc both have their own ast actions below.
+    return chars.ast;
+  },
+  singlelinevalue_optdesc(_valueChars, _st1, _at, _descKeyword, _lp, _tripleOpen, descContent, _tripleClose, _rp, _st2) {
+    // _valueChars holds everything before @description('''...) — the actual value
+    const value = _valueChars.sourceString.trim();
+
+    // descContent is an Iter: length === 1 when @description('''...''') was matched, 0 when absent.
+    // Using parsed AST nodes avoids a second O(n) regex pass over the raw source string.
+    if (descContent.children.length > 0) {
+      const raw = descContent.children[0].sourceString;
+
+      let description;
+      if (raw.includes('\n')) {
+        description = raw
           .split('\n')
-          .map((line) => line.slice(4))
-          .join('\n');
+          .map((line) => (line.startsWith('    ') ? line.slice(4) : line))
+          .join('\n')
+          .trim();
+      } else {
+        description = raw.trim();
       }
-      return chars.sourceString ? chars.sourceString.trim() : '';
-    } catch (err) {
-      console.error(err);
+
+      return { __value: value, __desc: description };
     }
-    return chars.sourceString ? chars.sourceString.trim() : '';
+
+    // No triple-quoted description. Value may still carry a double-quoted @description("...") suffix,
+    // which will be handled by extractDescription() in mapPairListToKeyValPairs.
+    return value;
   },
   textblock(line, _1, rest) {
     return [line.ast, ...rest.ast].join('\n');

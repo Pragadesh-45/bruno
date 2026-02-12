@@ -136,4 +136,76 @@ describe('jsonToBru stringify', () => {
       `);
     });
   });
+
+  describe('description annotation', () => {
+    it('emits @description with triple-quotes (literal newlines) for headers, params, vars, and assertions when present in JSON', () => {
+      const input = {
+        meta: { name: 'desc-test', type: 'http', seq: 1 },
+        http: { method: 'get', url: 'https://example.com', body: 'none' },
+        headers: [
+          { name: 'X-Custom', value: 'val', enabled: true, description: 'Custom header note' }
+        ],
+        params: [
+          { name: 'q', value: 'search', enabled: true, type: 'query', description: 'Query param hint' }
+        ],
+        vars: {
+          req: [
+            { name: 'apiKey', value: 'key123', enabled: true, description: 'Pre-request API key' }
+          ]
+        },
+        assertions: [
+          { name: 'res.status', value: 'eq 200', enabled: true, description: 'Expect OK' }
+        ]
+      };
+
+      const output = stringify(input);
+
+      expect(output).toMatch(/@description\('''Custom header note'''\)\n  X-Custom: val/);
+      expect(output).toMatch(/@description\('''Query param hint'''\)\n  q: search/);
+      expect(output).toMatch(/@description\('''Pre-request API key'''\)\n  apiKey: key123/);
+      expect(output).toMatch(/@description\('''Expect OK'''\)\n  res\.status: eq 200/);
+    });
+
+    it('emits triple-quoted description with literal newlines when description is multiline', () => {
+      const input = {
+        meta: { name: 'ml', type: 'http', seq: 1 },
+        http: { method: 'get', url: 'https://example.com', body: 'none' },
+        headers: [
+          { name: 'X-Note', value: 'v', enabled: true, description: 'Line one\nLine two' }
+        ]
+      };
+
+      const output = stringify(input);
+
+      expect(output).toContain('@description(\'\'\'\n    Line one\n    Line two\n  \'\'\')\n  X-Note: v');
+    });
+
+    it('emits double-quoted description when description contains triple quote', () => {
+      const input = {
+        meta: { name: 'tq', type: 'http', seq: 1 },
+        http: { method: 'get', url: 'https://example.com', body: 'none' },
+        headers: [
+          { name: 'X-Desc', value: 'v', enabled: true, description: 'Say \'\'\'triple\'\'\'' }
+        ]
+      };
+
+      const output = stringify(input);
+
+      expect(output).toMatch(/@description\("Say '''triple'''"\)/);
+    });
+
+    it('escapes backslash in triple-quoted description; double-quoted when description contains triple quote or newline', () => {
+      const input = {
+        meta: { name: 'esc', type: 'http', seq: 1 },
+        http: { method: 'get', url: 'https://example.com', body: 'none' },
+        headers: [
+          { name: 'X-Desc', value: 'v', enabled: true, description: 'Say "hello"' }
+        ]
+      };
+
+      const output = stringify(input);
+      // No ''' or newline so triple-quoted (double-quote is fine inside triple quotes)
+      expect(output).toMatch(/@description\('''Say "hello"'''\)/);
+    });
+  });
 });

@@ -1,6 +1,7 @@
 const ohm = require('ohm-js');
 const _ = require('lodash');
 const { safeParseJson, outdentString } = require('./utils');
+const { extractDescription } = require('./common/semantic-utils');
 const parseExample = require('./example/bruToJson');
 
 /**
@@ -35,13 +36,13 @@ const grammar = ohm.grammar(`Bru {
   bodies = bodyjson | bodytext | bodyxml | bodysparql | bodygraphql | bodygraphqlvars | bodyforms | body | bodygrpc | bodyws
   bodyforms = bodyformurlencoded | bodymultipart | bodyfile
   params = paramspath | paramsquery
-  
+
   // Oauth2 additional parameters
   authOauth2Configs = oauth2AuthReqConfig | oauth2AccessTokenReqConfig | oauth2RefreshTokenReqConfig
-  oauth2AuthReqConfig = oauth2AuthReqHeaders | oauth2AuthReqQueryParams 
+  oauth2AuthReqConfig = oauth2AuthReqHeaders | oauth2AuthReqQueryParams
   oauth2AccessTokenReqConfig = oauth2AccessTokenReqHeaders | oauth2AccessTokenReqQueryParams | oauth2AccessTokenReqBody
   oauth2RefreshTokenReqConfig = oauth2RefreshTokenReqHeaders | oauth2RefreshTokenReqQueryParams | oauth2RefreshTokenReqBody
- 
+
   nl = "\\r"? "\\n"
   st = " " | "\\t"
   stnl = st | nl
@@ -58,7 +59,7 @@ const grammar = ohm.grammar(`Bru {
   // Dictionary Blocks
   dictionary = st* "{" pairlist? tagend
   pairlist = optionalnl* pair (~tagend stnl* pair)* (~tagend space)*
-  pair = st* (quoted_key | key) st* ":" st* value st*
+  pair = descriptionprefix? st* (quoted_key | key) st* ":" st* value st*
   disable_char = "~"
   quote_char = "\\""
   esc_char = "\\\\"
@@ -66,13 +67,26 @@ const grammar = ohm.grammar(`Bru {
   quoted_key_char = ~(quote_char | esc_quote_char | nl) any
   quoted_key = disable_char? quote_char (esc_quote_char | quoted_key_char)* quote_char
   key = keychar*
-  value = list | multilinetextblock | singlelinevalue
+  value = list | multilinetextblock | singlelinevalue_optdesc
+  singlelinevalue_optdesc = valuechar_before_desc* (st* "@" "description" "(" "'''" descriptionTripleContent "'''" ")" st*)?
+  valuechar_before_desc = ~(st* "@" "description" "(" "'''") valuechar
+  descriptionTripleContent = (~"'''" any)*
   singlelinevalue = valuechar*
+
+  // Prefix description annotation: @description('''...''') on its own line before a key:value pair.
+  // Supports multiline values (unlike the suffix form).
+  // Double-quoted form is used when the description itself contains ''' (cannot embed inside triple-quoted).
+  descriptionprefix = descriptionprefix_triple | descriptionprefix_double
+  descriptionprefix_triple = st* "@" "description" "(" "'''" descriptionTripleContent "'''" ")" st* nl
+  descriptionprefix_double = st* "@" "description" "(" "\\"" descriptionDoubleChar* "\\"" ")" st* nl
+  descriptionDoubleChar = descriptionDoubleEsc | descriptionDoubleNorm
+  descriptionDoubleEsc = "\\\\" any
+  descriptionDoubleNorm = ~"\\"" ~nl any
 
   // Dictionary for Assert Block
   assertdictionary = st* "{" assertpairlist? tagend
   assertpairlist = optionalnl* assertpair (~tagend stnl* assertpair)* (~tagend space)*
-  assertpair = st* assertkey st* ":" st* value st*
+  assertpair = descriptionprefix? st* assertkey st* ":" st* value st*
   assertkey = ~tagend assertkeychar*
   assertkeychar = ~(tagend | nl | ":") any
 
@@ -152,7 +166,7 @@ const grammar = ohm.grammar(`Bru {
   // Examples - multiple example blocks
   example = "example" st* "{" nl* examplecontent tagend
   examplecontent = (~tagend any)*
-  
+
   script = scriptreq | scriptres
   scriptreq = "script:pre-request" st* "{" nl* textblock tagend
   scriptres = "script:post-response" st* "{" nl* textblock tagend
@@ -165,7 +179,8 @@ const mapPairListToKeyValPairs = (pairList = [], parseEnabled = true) => {
     return [];
   }
   return _.map(pairList[0], (pair) => {
-    let name = _.keys(pair)[0];
+    // Skip the internal __desc marker when resolving the real key name
+    let name = _.keys(pair).find((k) => k !== '__desc');
     let value = pair[name];
 
     if (!parseEnabled) {
@@ -181,11 +196,23 @@ const mapPairListToKeyValPairs = (pairList = [], parseEnabled = true) => {
       enabled = false;
     }
 
-    return {
+    const result = {
       name,
       value,
       enabled
     };
+
+    if (pair.__desc !== undefined) {
+      // Grammar already parsed this — use it directly, no regex needed
+      result.description = pair.__desc;
+    } else {
+      // The serializer uses double-quoted @description("...") only when the description itself
+      // contains ''' (triple-quotes can't be embedded inside triple-quoted delimiters).
+      // That form is not handled by the grammar rule, so regex extraction is still needed.
+      extractDescription(result);
+    }
+
+    return result;
   });
 };
 
@@ -194,7 +221,8 @@ const mapRequestParams = (pairList = [], type) => {
     return [];
   }
   return _.map(pairList[0], (pair) => {
-    let name = _.keys(pair)[0];
+    // Skip the internal __desc marker when resolving the real key name
+    let name = _.keys(pair).find((k) => k !== '__desc');
     let value = pair[name];
     let enabled = true;
     if (name && name.length && name.charAt(0) === '~') {
@@ -202,12 +230,24 @@ const mapRequestParams = (pairList = [], type) => {
       enabled = false;
     }
 
-    return {
+    const result = {
       name,
       value,
       enabled,
       type
     };
+
+    if (pair.__desc !== undefined) {
+      // Got parsed by the grammar rule, no regex needed
+      result.description = pair.__desc;
+    } else {
+      // The serializer uses double-quoted @description("...") only when the description itself
+      // contains ''' (triple-quotes can't be embedded inside triple-quoted delimiters).
+      // That form is not handled by the grammar rule, so regex extraction is still needed.
+      extractDescription(result);
+    }
+
+    return result;
   });
 };
 
@@ -240,9 +280,10 @@ const mapPairListToKeyValPairsMultipart = (pairList = [], parseEnabled = true) =
 
   return pairs.map((pair) => {
     pair.type = 'text';
+    // Description is already handled inside mapPairListToKeyValPairs
     multipartExtractContentType(pair);
 
-    if (pair.value.startsWith('@file(') && pair.value.endsWith(')')) {
+    if (_.isString(pair.value) && pair.value.startsWith('@file(') && pair.value.endsWith(')')) {
       let filestr = pair.value.replace(/^@file\(/, '').replace(/\)$/, '');
       pair.type = 'file';
       pair.value = filestr.split('|');
@@ -351,13 +392,46 @@ const sem = grammar.createSemantics().addAttribute('ast', {
   pairlist(_1, pair, _2, rest, _3) {
     return [pair.ast, ...rest.ast];
   },
-  pair(_1, key, _2, _3, _4, value, _5) {
+  descriptionprefix(alt) {
+    return alt.ast;
+  },
+  descriptionprefix_triple(_st, _at, _desc, _lp, _open, descContent, _close, _rp, _st2, _nl) {
+    const raw = descContent.sourceString;
+    if (raw.includes('\n')) {
+      return raw.split('\n').map((line) => (line.startsWith('    ') ? line.slice(4) : line)).join('\n').trim();
+    }
+    return raw.trim();
+  },
+  descriptionprefix_double(_st, _at, _desc, _lp, _dqOpen, descChars, _dqClose, _rp, _st2, _nl) {
+    return descChars.sourceString.replace(/\\(\\|"|n|r|t)/g, (_, c) => {
+      if (c === '\\') return '\\';
+      if (c === '"') return '"';
+      if (c === 'n') return '\n';
+      if (c === 'r') return '\r';
+      if (c === 't') return '\t';
+      return c;
+    });
+  },
+  pair(descPrefix, _1, key, _2, _3, _4, value, _5) {
     let res = {};
-    if (Array.isArray(value.ast)) {
-      res[key.ast] = value.ast;
+    const valueAst = value.ast;
+    const prefixDesc = descPrefix.children.length > 0 ? descPrefix.children[0].ast : undefined;
+
+    if (Array.isArray(valueAst)) {
+      res[key.ast] = valueAst;
+      if (prefixDesc !== undefined) res.__desc = prefixDesc;
       return res;
     }
-    res[key.ast] = value.ast ? value.ast.trim() : '';
+
+    if (valueAst && typeof valueAst === 'object' && '__value' in valueAst) {
+      res[key.ast] = valueAst.__value;
+      // Prefix description takes precedence over suffix description
+      res.__desc = prefixDesc !== undefined ? prefixDesc : valueAst.__desc;
+      return res;
+    }
+
+    res[key.ast] = valueAst ? valueAst.trim() : '';
+    if (prefixDesc !== undefined) res.__desc = prefixDesc;
     return res;
   },
   esc_quote_char(_1, quote) {
@@ -377,9 +451,19 @@ const sem = grammar.createSemantics().addAttribute('ast', {
   assertpairlist(_1, pair, _2, rest, _3) {
     return [pair.ast, ...rest.ast];
   },
-  assertpair(_1, key, _2, _3, _4, value, _5) {
+  assertpair(descPrefix, _1, key, _2, _3, _4, value, _5) {
     let res = {};
-    res[key.ast] = value.ast ? value.ast.trim() : '';
+    const valueAst = value.ast;
+    const prefixDesc = descPrefix.children.length > 0 ? descPrefix.children[0].ast : undefined;
+
+    if (valueAst && typeof valueAst === 'object' && '__value' in valueAst) {
+      res[key.ast] = valueAst.__value;
+      res.__desc = prefixDesc !== undefined ? prefixDesc : valueAst.__desc;
+      return res;
+    }
+
+    res[key.ast] = valueAst ? valueAst.trim() : '';
+    if (prefixDesc !== undefined) res.__desc = prefixDesc;
     return res;
   },
   assertkey(chars) {
@@ -431,6 +515,35 @@ const sem = grammar.createSemantics().addAttribute('ast', {
   },
   singlelinevalue(chars) {
     return chars.sourceString?.trim() || '';
+  },
+  singlelinevalue_optdesc(_valueChars, _st1, _at, _descKeyword, _lp, _tripleOpen, descContent, _tripleClose, _rp, _st2) {
+    const value = _valueChars.sourceString.trim();
+
+    // descContent is an Iter: length === 1 when @description('''...''') was matched, 0 when absent.
+    if (descContent.children.length > 0) {
+      const raw = descContent.children[0].sourceString;
+
+      let description;
+      if (raw.includes('\n')) {
+        // Multiline block: jsonToBru indents content by 4 spaces — strip them back
+        description = raw
+          .split('\n')
+          .map((line) => (line.startsWith('    ') ? line.slice(4) : line))
+          .join('\n')
+          .trim();
+      } else {
+        description = raw.trim();
+      }
+
+      // Return a tagged object so the pair action can propagate both value and description
+      // without needing a second O(n) scan via extractDescription()
+      return { __value: value, __desc: description };
+    }
+
+    // No triple-quoted description present.
+    // The value may still carry a double-quoted @description("...") suffix — that form is not
+    // covered by the grammar rule and will be handled by extractDescription() downstream.
+    return value;
   },
   _iter(...elements) {
     return elements.map((e) => e.ast);
