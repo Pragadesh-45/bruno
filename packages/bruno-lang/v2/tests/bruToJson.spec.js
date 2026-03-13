@@ -9,7 +9,7 @@ body:ws {
     name: message 1
     content: '''
       {"foo":"bar"}
-    ''' 
+    '''
 }
 
 settings {
@@ -46,7 +46,7 @@ body:grpc {
     name: message 1
     content: '''
       {"foo":"bar"}
-    ''' 
+    '''
 }
 `;
 
@@ -72,7 +72,7 @@ body:grpc {
     name: message 1
     content: '''
       {"id":{{userId}},"name":"{{userName}}"}
-    ''' 
+    '''
 }
 `;
 
@@ -387,6 +387,141 @@ body:form-urlencoded {
         value: 'v',
         enabled: true,
         description: '\\ and " and \\n'
+      });
+    });
+
+    it('parses emoji in triple-quoted suffix description', () => {
+      const input = `
+headers {
+  Authorization: Bearer xxx @description('''Auth token 🔑''')
+  X-Region: us-east @description('''Region 🌍 selector''')
+}`;
+
+      const output = parser(input);
+      expect(output.headers[0]).toMatchObject({
+        name: 'Authorization',
+        value: 'Bearer xxx',
+        description: 'Auth token 🔑'
+      });
+      expect(output.headers[1]).toMatchObject({
+        name: 'X-Region',
+        value: 'us-east',
+        description: 'Region 🌍 selector'
+      });
+    });
+
+    it('parses emoji in double-quoted description', () => {
+      const input = `
+vars:pre-request {
+  token: secret @description("API key 🔐 required")
+}
+assert {
+  res.status: eq 200 @description("Status check ✅")
+}`;
+
+      const output = parser(input);
+      expect(output.vars.req[0]).toMatchObject({
+        name: 'token',
+        value: 'secret',
+        description: 'API key 🔐 required'
+      });
+      expect(output.assertions[0]).toMatchObject({
+        name: 'res.status',
+        value: 'eq 200',
+        description: 'Status check ✅'
+      });
+    });
+
+    it('parses emoji in multiline triple-quoted prefix description', () => {
+      const input = `
+headers {
+  @description('''
+    Launch 🚀
+    Second line
+  ''')
+  X-Launch: val
+}`;
+
+      const output = parser(input);
+      expect(output.headers[0]).toMatchObject({
+        name: 'X-Launch',
+        value: 'val',
+        description: 'Launch 🚀\nSecond line'
+      });
+    });
+
+    it('parses \\r\\n escape sequence in double-quoted description as CRLF', () => {
+      const input = `
+headers {
+  X-Note: v @description("Line one\\r\\nLine two")
+}`;
+
+      const output = parser(input);
+      expect(output.headers[0]).toMatchObject({
+        name: 'X-Note',
+        value: 'v',
+        description: 'Line one\r\nLine two'
+      });
+    });
+
+    it('parses \\n escape sequence in double-quoted description as LF', () => {
+      const input = `
+headers {
+  X-Note: v @description("First\\nSecond\\nThird")
+}`;
+
+      const output = parser(input);
+      expect(output.headers[0]).toMatchObject({
+        name: 'X-Note',
+        value: 'v',
+        description: 'First\nSecond\nThird'
+      });
+    });
+
+    it('parses triple-quoted prefix with CRLF file line endings', () => {
+      // Simulate a .bru file saved with Windows CRLF line endings
+      const input = 'headers {\r\n  @description(\'\'\'Line one\'\'\')\r\n  X-Note: val\r\n}';
+
+      const output = parser(input);
+      expect(output.headers[0]).toMatchObject({
+        name: 'X-Note',
+        value: 'val',
+        description: 'Line one'
+      });
+    });
+
+    it('parses multiline triple-quoted prefix with CRLF file line endings', () => {
+      const input = 'headers {\r\n  @description(\'\'\'\r\n    Line one\r\n    Line two\r\n  \'\'\')\r\n  X-Note: val\r\n}';
+
+      const output = parser(input);
+      expect(output.headers[0]).toMatchObject({
+        name: 'X-Note',
+        value: 'val',
+        description: 'Line one\r\nLine two'
+      });
+    });
+
+    it('multiple consecutive @description prefixes: orphaned annotation becomes empty row, last one applies to the key', () => {
+      const input = `
+headers {
+  @description('''hello''')
+  @description('''hi''')
+  a: b
+}`;
+
+      const output = parser(input);
+      expect(output.headers).toHaveLength(2);
+      expect(output.headers[0]).toMatchObject({
+        name: '',
+        value: '',
+        enabled: true,
+        description: 'hello'
+      });
+      expect(output.headers[1]).toMatchObject({
+        name: 'a',
+        value: 'b',
+        enabled: true,
+        description: 'hi'
       });
     });
   });

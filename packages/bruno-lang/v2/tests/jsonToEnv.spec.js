@@ -94,6 +94,72 @@ describe('jsonToEnv', () => {
     expect(output).toContain('@description(\'\'\'\n    Line one\n    Line two\n  \'\'\')');
   });
 
+  it('should stringify description with emoji (single-line triple-quoted)', () => {
+    const input = {
+      variables: [
+        {
+          name: 'token',
+          value: 'secret',
+          enabled: true,
+          description: 'API key 🔐 required'
+        }
+      ]
+    };
+
+    const output = parser(input);
+    expect(output).toContain('@description(\'\'\'API key 🔐 required\'\'\')');
+    expect(output).toContain('token: secret');
+  });
+
+  it('should stringify multiline description with emoji using triple-quoted literal newlines', () => {
+    const input = {
+      variables: [
+        {
+          name: 'note',
+          value: 'val',
+          enabled: true,
+          description: 'Launch 🚀\nSecond line'
+        }
+      ]
+    };
+
+    const output = parser(input);
+    expect(output).toContain('@description(\'\'\'\n    Launch 🚀\n    Second line\n  \'\'\')');
+  });
+
+  it('should stringify description with LF (\\n) as multiline triple-quoted', () => {
+    const input = {
+      variables: [
+        {
+          name: 'note',
+          value: 'val',
+          enabled: true,
+          description: 'First\nSecond\nThird'
+        }
+      ]
+    };
+
+    const output = parser(input);
+    expect(output).toContain('@description(\'\'\'\n    First\n    Second\n    Third\n  \'\'\')');
+  });
+
+  it('should stringify description with CRLF (\\r\\n) as multiline triple-quoted with LF normalization', () => {
+    const input = {
+      variables: [
+        {
+          name: 'note',
+          value: 'val',
+          enabled: true,
+          description: 'Line one\r\nLine two'
+        }
+      ]
+    };
+
+    const output = parser(input);
+    // indentString normalizes \r\n to \n when serializing
+    expect(output).toContain('@description(\'\'\'\n    Line one\n    Line two\n  \'\'\')');
+  });
+
   it('should stringify secret vars', () => {
     const input = {
       variables: [

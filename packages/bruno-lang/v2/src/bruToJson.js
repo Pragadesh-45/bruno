@@ -59,7 +59,8 @@ const grammar = ohm.grammar(`Bru {
   // Dictionary Blocks
   dictionary = st* "{" pairlist? tagend
   pairlist = optionalnl* pair (~tagend stnl* pair)* (~tagend space)*
-  pair = descriptionprefix? st* (quoted_key | key) st* ":" st* value st*
+  pair = descriptionprefix? st* (quoted_key | key) st* ":" st* value st*  -- kv
+       | descriptionprefix  -- orphandesc
   disable_char = "~"
   quote_char = "\\""
   esc_char = "\\\\"
@@ -412,7 +413,7 @@ const sem = grammar.createSemantics().addAttribute('ast', {
       return c;
     });
   },
-  pair(descPrefix, _1, key, _2, _3, _4, value, _5) {
+  pair_kv(descPrefix, _1, key, _2, _3, _4, value, _5) {
     let res = {};
     const valueAst = value.ast;
     const prefixDesc = descPrefix.children.length > 0 ? descPrefix.children[0].ast : undefined;
@@ -433,6 +434,9 @@ const sem = grammar.createSemantics().addAttribute('ast', {
     res[key.ast] = valueAst ? valueAst.trim() : '';
     if (prefixDesc !== undefined) res.__desc = prefixDesc;
     return res;
+  },
+  pair_orphandesc(descPrefix) {
+    return { '': '', '__desc': descPrefix.ast };
   },
   esc_quote_char(_1, quote) {
     // unescape

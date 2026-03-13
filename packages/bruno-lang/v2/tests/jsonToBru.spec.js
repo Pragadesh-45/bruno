@@ -207,5 +207,60 @@ describe('jsonToBru stringify', () => {
       // No ''' or newline so triple-quoted (double-quote is fine inside triple quotes)
       expect(output).toMatch(/@description\('''Say "hello"'''\)/);
     });
+
+    it('emits triple-quoted description with emoji', () => {
+      const input = {
+        meta: { name: 'emoji', type: 'http', seq: 1 },
+        http: { method: 'get', url: 'https://example.com', body: 'none' },
+        headers: [
+          { name: 'Authorization', value: 'Bearer xxx', enabled: true, description: 'Auth token 🔑' },
+          { name: 'X-Region', value: 'us-east', enabled: true, description: 'Region 🌍 selector' }
+        ]
+      };
+
+      const output = stringify(input);
+      expect(output).toMatch(/@description\('''Auth token 🔑'''\)/);
+      expect(output).toMatch(/@description\('''Region 🌍 selector'''\)/);
+    });
+
+    it('emits multiline triple-quoted description with emoji', () => {
+      const input = {
+        meta: { name: 'emoji-ml', type: 'http', seq: 1 },
+        http: { method: 'get', url: 'https://example.com', body: 'none' },
+        headers: [
+          { name: 'X-Launch', value: 'val', enabled: true, description: 'Launch 🚀\nSecond line' }
+        ]
+      };
+
+      const output = stringify(input);
+      expect(output).toContain('@description(\'\'\'\n    Launch 🚀\n    Second line\n  \'\'\')\n  X-Launch: val');
+    });
+
+    it('emits multiline triple-quoted description with \\n (LF)', () => {
+      const input = {
+        meta: { name: 'lf', type: 'http', seq: 1 },
+        http: { method: 'get', url: 'https://example.com', body: 'none' },
+        headers: [
+          { name: 'X-Note', value: 'v', enabled: true, description: 'First\nSecond\nThird' }
+        ]
+      };
+
+      const output = stringify(input);
+      expect(output).toContain('@description(\'\'\'\n    First\n    Second\n    Third\n  \'\'\')\n  X-Note: v');
+    });
+
+    it('emits multiline triple-quoted description with \\r\\n (CRLF) normalized to LF', () => {
+      const input = {
+        meta: { name: 'crlf', type: 'http', seq: 1 },
+        http: { method: 'get', url: 'https://example.com', body: 'none' },
+        headers: [
+          { name: 'X-Note', value: 'v', enabled: true, description: 'Line one\r\nLine two' }
+        ]
+      };
+
+      const output = stringify(input);
+      // indentString normalizes \r\n to \n when serializing
+      expect(output).toContain('@description(\'\'\'\n    Line one\n    Line two\n  \'\'\')\n  X-Note: v');
+    });
   });
 });

@@ -443,6 +443,81 @@ vars {
     expect(output).toEqual(expected);
   });
 
+  it('should parse @description with emoji', () => {
+    const input = `
+vars {
+  token: secret @description('''API key 🔐 required''')
+  region: us-east @description('''Region 🌍 selector''')
+}`;
+
+    const output = parser(input);
+    const expected = {
+      variables: [
+        {
+          name: 'token',
+          value: 'secret',
+          enabled: true,
+          secret: false,
+          description: 'API key 🔐 required'
+        },
+        {
+          name: 'region',
+          value: 'us-east',
+          enabled: true,
+          secret: false,
+          description: 'Region 🌍 selector'
+        }
+      ]
+    };
+
+    expect(output).toEqual(expected);
+  });
+
+  it('should parse @description with double-quoted \\n escape sequence as LF', () => {
+    const input = `
+vars {
+  note: val @description("First\\nSecond\\nThird")
+}`;
+
+    const output = parser(input);
+    expect(output.variables[0]).toMatchObject({
+      name: 'note',
+      value: 'val',
+      description: 'First\nSecond\nThird'
+    });
+  });
+
+  it('should parse @description with double-quoted \\r\\n escape sequence as CRLF', () => {
+    const input = `
+vars {
+  note: val @description("Line one\\r\\nLine two")
+}`;
+
+    const output = parser(input);
+    expect(output.variables[0]).toMatchObject({
+      name: 'note',
+      value: 'val',
+      description: 'Line one\r\nLine two'
+    });
+  });
+
+  it('should parse triple-quoted @description with literal newlines', () => {
+    const input = `
+vars {
+  note: val @description('''
+    Line one
+    Line two
+  ''')
+}`;
+
+    const output = parser(input);
+    expect(output.variables[0]).toMatchObject({
+      name: 'note',
+      value: 'val',
+      description: 'Line one\nLine two'
+    });
+  });
+
   it('should parse multiple multiline variables', () => {
     const input = `
 vars {
