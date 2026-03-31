@@ -88,6 +88,12 @@ const ProxySettings = ({ close }) => {
   );
 
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [proxyMode, setProxyMode] = useState(() => {
+    if (preferences.proxy.disabled) return 'off';
+    if (preferences.proxy.inherit) return 'system';
+    if (preferences.proxy.pacUrl) return 'pac';
+    return 'on';
+  });
 
   useEffect(() => {
     if (formik.dirty && formik.isValid) {
@@ -112,10 +118,12 @@ const ProxySettings = ({ close }) => {
                 type="radio"
                 name="mode"
                 value="off"
-                checked={formik.values.disabled === true}
+                checked={proxyMode === 'off'}
                 onChange={(e) => {
+                  setProxyMode('off');
                   formik.setFieldValue('disabled', true);
                   formik.setFieldValue('inherit', false);
+                  formik.setFieldValue('pacUrl', '');
                 }}
                 className="mr-1 cursor-pointer"
               />
@@ -126,10 +134,12 @@ const ProxySettings = ({ close }) => {
                 type="radio"
                 name="mode"
                 value="on"
-                checked={formik.values.disabled === false && formik.values.inherit === false}
+                checked={proxyMode === 'on'}
                 onChange={(e) => {
+                  setProxyMode('on');
                   formik.setFieldValue('disabled', false);
                   formik.setFieldValue('inherit', false);
+                  formik.setFieldValue('pacUrl', '');
                 }}
                 className="mr-1 cursor-pointer"
               />
@@ -140,10 +150,12 @@ const ProxySettings = ({ close }) => {
                 type="radio"
                 name="mode"
                 value="system"
-                checked={formik.values.disabled === false && formik.values.inherit === true}
+                checked={proxyMode === 'system'}
                 onChange={(e) => {
+                  setProxyMode('system');
                   formik.setFieldValue('disabled', false);
                   formik.setFieldValue('inherit', true);
+                  formik.setFieldValue('pacUrl', '');
                 }}
                 className="mr-1 cursor-pointer"
               />
@@ -154,8 +166,9 @@ const ProxySettings = ({ close }) => {
                 type="radio"
                 name="mode"
                 value="pac"
-                checked={formik.values.disabled === false && formik.values.inherit === false && !!formik.values.pacUrl}
+                checked={proxyMode === 'pac'}
                 onChange={(e) => {
+                  setProxyMode('pac');
                   formik.setFieldValue('disabled', false);
                   formik.setFieldValue('inherit', false);
                 }}
@@ -165,12 +178,12 @@ const ProxySettings = ({ close }) => {
             </label>
           </div>
         </div>
-        {formik.values.disabled === false && formik.values.inherit === true ? (
+        {proxyMode === 'system' ? (
           <div className="mb-3 pt-1 text-muted system-proxy-settings">
             <SystemProxy />
           </div>
         ) : null}
-        {formik.values.disabled === false && formik.values.inherit === false ? (
+        {proxyMode === 'on' ? (
           <>
             <div className="mb-3 flex items-center">
               <label className="settings-label" htmlFor="protocol">
@@ -351,7 +364,7 @@ const ProxySettings = ({ close }) => {
             </div>
           </>
         ) : null}
-        {formik.values.disabled === false && formik.values.inherit === false && !!formik.values.pacUrl ? (
+        {proxyMode === 'pac' ? (
           <>
             <div className="mb-3 flex items-center">
               <label className="settings-label" htmlFor="pacUrl">
