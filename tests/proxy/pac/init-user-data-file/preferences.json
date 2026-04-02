@@ -9,7 +9,7 @@
     "proxy": {
       "inherit": false,
       "config": {
-        "pacUrl": "http://localhost:18080/test.pac"
+        "pacUrl": "{{pacFileUrl}}"
       }
     }
   }
