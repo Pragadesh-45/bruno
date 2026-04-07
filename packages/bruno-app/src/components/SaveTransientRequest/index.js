@@ -194,12 +194,17 @@ const SaveTransientRequest = ({ item: itemProp, collection: collectionProp, isOp
         return;
       }
 
-      if (!validateName(trimmedName)) {
-        toast.error(validateNameError(trimmedName));
+      const sanitizedFilename = sanitizeName(trimmedName);
+
+      if (!sanitizedFilename) {
+        toast.error('Request name results in an empty filename after sanitization');
         return;
       }
 
-      const sanitizedFilename = sanitizeName(trimmedName);
+      if (!validateName(sanitizedFilename)) {
+        toast.error(validateNameError(sanitizedFilename));
+        return;
+      }
 
       const itemToSave = latestItem.draft ? { ...latestItem, ...latestItem.draft } : { ...latestItem };
       itemToSave.name = sanitizedFilename;
