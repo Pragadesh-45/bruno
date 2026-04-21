@@ -100,9 +100,7 @@ function makeAxiosInstance({
   });
 
   // Set User-Agent manually (using transformRequest to delete headers instead)
-  instance.defaults.headers.common = {
-    'User-Agent': `bruno-runtime/${version}`
-  };
+  instance.defaults.headers.common['User-Agent'] = `bruno-runtime/${version}`;
 
   instance.interceptors.request.use(async (config) => {
     const url = URL.parse(config.url);

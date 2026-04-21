@@ -51,6 +51,26 @@ function createStubAdapter() {
   return adapter;
 }
 
+describe('axios-instance: default headers', () => {
+  test('sends Accept header on outgoing requests', async () => {
+    const stubAdapter = createStubAdapter();
+    const instance = makeAxiosInstance();
+
+    await instance({ url: 'https://api.example.com/test', method: 'get', adapter: stubAdapter });
+
+    expect(stubAdapter.getConfig().headers['Accept']).toBe('application/json, text/plain, */*');
+  });
+
+  test('sends User-Agent header on outgoing requests', async () => {
+    const stubAdapter = createStubAdapter();
+    const instance = makeAxiosInstance();
+
+    await instance({ url: 'https://api.example.com/test', method: 'get', adapter: stubAdapter });
+
+    expect(stubAdapter.getConfig().headers['User-Agent']).toMatch(/^bruno-runtime\//);
+  });
+});
+
 describe('axios-instance: DNS lookup behavior (GitHub #7343)', () => {
   let axiosInstance;
 

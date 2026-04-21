@@ -93,9 +93,7 @@ function makeAxiosInstance({
   });
 
   // Set User-Agent manually (using transformRequest to delete headers instead)
-  instance.defaults.headers.common = {
-    'User-Agent': `bruno-runtime/${CLI_VERSION}`
-  };
+  instance.defaults.headers.common['User-Agent'] = `bruno-runtime/${CLI_VERSION}`;
 
   instance.interceptors.request.use((config) => {
     config.headers['request-start-time'] = Date.now();
