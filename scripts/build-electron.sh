@@ -20,10 +20,7 @@ sed -i'' -e 's@/static/font@../../static/font@g' packages/bruno-electron/web/sta
 # Remove sourcemaps
 find packages/bruno-electron/web -name '*.map' -type f -delete
 
-if [ "$1" == "snap" ]; then
-  echo "Building snap distribution"
-  npm run dist:snap --workspace=packages/bruno-electron 
-elif [ "$1" == "mac" ]; then
+if [ "$1" == "mac" ]; then
   echo "Building mac distribution"
   npm run dist:mac --workspace=packages/bruno-electron
 elif [ "$1" == "win" ]; then

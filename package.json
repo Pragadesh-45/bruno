@@ -77,7 +77,7 @@
     "build:electron:linux": "./scripts/build-electron.sh linux",
     "build:electron:deb": "./scripts/build-electron.sh deb",
     "build:electron:rpm": "./scripts/build-electron.sh rpm",
-    "build:electron:snap": "./scripts/build-electron.sh snap",
+    "build:electron:snap": "./scripts/build-snap.sh",
     "watch:common": "npm run watch --workspace=packages/bruno-common",
     "watch:requests": "npm run watch --workspace=packages/bruno-requests",
     "test:codegen": "node playwright/codegen.ts",

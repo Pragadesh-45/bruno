@@ -102,8 +102,25 @@ const config = {
   },
   // Bundle git so Snap/sandbox installs can find it (#5667)
   snap: {
+    // Default is core20; core24+ rejects electron-builder 24's manifest
+    base: 'core22',
+    // ssh comes from the base snap's /usr/bin
     stagePackages: ['default', 'git'],
-    // electron-builder's app part strips usr/bin, so expose git from git-core
+    plugs: [
+      'default',
+      // Not auto-connected: `snap connect bruno:ssh-keys` for git over ssh
+      'ssh-keys',
+      // Template's core18 GNOME plug, redirected to the core22 platform; `content` decides the connection
+      {
+        'gnome-3-28-1804': {
+          'interface': 'content',
+          'content': 'gnome-42-2204',
+          'target': '$SNAP/gnome-platform',
+          'default-provider': 'gnome-42-2204'
+        }
+      }
+    ],
+    // usr/bin is stripped from the snap; git and its helpers run from git-core
     environment: {
       PATH: '$SNAP/usr/lib/git-core:$SNAP/usr/sbin:$SNAP/usr/bin:$SNAP/sbin:$SNAP/bin:$PATH',
       GIT_EXEC_PATH: '$SNAP/usr/lib/git-core'
