@@ -109,8 +109,10 @@ const config = {
     core24: {
       stagePackages: ['default', 'git'],
       // With the gnome extension, electron-builder adds only these plugs on top of the extension's desktop set,
-      // and drops its own browser-support once plugs are set. ssh-keys is not auto-connected: `snap connect bruno:ssh-keys`
-      plugs: ['browser-support', 'network', 'home', 'ssh-keys'],
+      // and drops its own browser-support once plugs are set. network-bind lets the mock server listen;
+      // password-manager-service gives safeStorage the system keyring. ssh-keys and password-manager-service
+      // are not auto-connected: `snap connect bruno:<plug>`
+      plugs: ['browser-support', 'network', 'network-bind', 'home', 'ssh-keys', 'password-manager-service'],
       environment: {
         PATH: '$SNAP/usr/lib/git-core:$SNAP/usr/sbin:$SNAP/usr/bin:$SNAP/sbin:$SNAP/bin:$PATH',
         GIT_EXEC_PATH: '$SNAP/usr/lib/git-core'
