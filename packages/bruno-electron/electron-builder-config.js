@@ -103,12 +103,18 @@ const config = {
     ]
   },
   // Bundle git so Snap/sandbox installs can find it (#5667)
-  snap: {
-    stagePackages: ['default', 'git'],
-    // electron-builder's app part strips usr/bin, so expose git from git-core
-    environment: {
-      PATH: '$SNAP/usr/lib/git-core:$SNAP/usr/sbin:$SNAP/usr/bin:$SNAP/sbin:$SNAP/bin:$PATH',
-      GIT_EXEC_PATH: '$SNAP/usr/lib/git-core'
+  // core24 uses the `snapcraft` key; electron-builder runs `snapcraft pack` (LXD) with the gnome extension.
+  snapcraft: {
+    base: 'core24',
+    core24: {
+      stagePackages: ['default', 'git'],
+      // With the gnome extension, electron-builder adds only these plugs on top of the extension's desktop set,
+      // and drops its own browser-support once plugs are set. ssh-keys is not auto-connected: `snap connect bruno:ssh-keys`
+      plugs: ['browser-support', 'network', 'home', 'ssh-keys'],
+      environment: {
+        PATH: '$SNAP/usr/lib/git-core:$SNAP/usr/sbin:$SNAP/usr/bin:$SNAP/sbin:$SNAP/bin:$PATH',
+        GIT_EXEC_PATH: '$SNAP/usr/lib/git-core'
+      }
     }
   },
   win: {
